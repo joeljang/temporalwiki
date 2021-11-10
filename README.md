@@ -4,7 +4,7 @@
 In order to reproduce our results, take the following steps:
 ### 1. Create conda environment and install requirements
 ```
-conda create -n ckl python=3.8 && conda activate ckl
+conda create -n elm python=3.8 && conda activate elm
 pip install -r requirements.txt
 ```
 
