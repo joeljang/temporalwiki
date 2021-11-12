@@ -3,8 +3,6 @@ import pandas as pd
 import json
 import random
 
-from datasets import load_dataset
-
 class Pretrain(Dataset):
     def __init__(self, tokenizer, type_path, num_samples, input_length, output_length, args, length=None):
         self.args = args
