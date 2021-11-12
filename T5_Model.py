@@ -50,6 +50,8 @@ class T5(pl.LightningModule):
         def rid_of_specials(text):
             text = text.replace("<extra_id_0>", "")
             text = text.replace("<extra_id_1>", "")
+            text = text.replace("<extra_id_2>", "")
+            text = text.replace("<extra_id_3>", "")
             return text
 
         return rid_of_specials(white_space_fix(remove_articles(remove_punc(lower(s)))))

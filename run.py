@@ -76,7 +76,7 @@ if __name__ == '__main__':
         n_val=-1,
         n_train=-1,
         n_test=-1,
-        use_deepspeed=hparam.use_deepspeed,
+        fp16=hparam.fp16,
         opt_level='O1', # you can find out more on optimisation levels here https://nvidia.github.io/apex/amp.html#opt-levels-and-properties
         max_grad_norm=hparam.grad_norm, # if you enable 16-bit training then set this to a sensible value, 0.5 is a good default
         seed=42,
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     args = argparse.Namespace(**args_dict)
 
     # Defining how to save model checkpoints during training. Details: https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.callbacks.model_checkpoint.html 
-    callbacks = [ModelCheckpoint(dirpath = args.output_dir, save_top_k=-1, period=1)]
+    callbacks = [ModelCheckpoint(dirpath = args.output_dir)]
     checkpoint_callback = True
 
     if args.output_dir=="":
@@ -99,28 +99,21 @@ if __name__ == '__main__':
     if args.use_lr_scheduling and hparam.wandb_log:
         callbacks.append(pl.callbacks.LearningRateMonitor())
 
-    if args.use_deepspeed:
-        plugins = 'deepspeed_stage_2'
-        use_fp_16 = True
-    else:
-        plugins = []
-        use_fp_16 = False
-
     # Setting Flags for pytorch lightning trainer. Details: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#trainer-flags
     train_params = dict(
         accumulate_grad_batches=args.gradient_accumulation_steps,
-        plugins=plugins,
         gpus=args.n_gpu,
         max_epochs=args.num_train_epochs,
-        precision= 16 if use_fp_16 else 32,
-        amp_level=args.opt_level,
+        precision= 16 if args.fp16 else 32,
+        amp_backend="native",
+        #amp_level=args.opt_level,
         resume_from_checkpoint=args.resume_from_checkpoint,
         gradient_clip_val=args.max_grad_norm,
-        checkpoint_callback=checkpoint_callback,
+        enable_checkpointing=checkpoint_callback,
         val_check_interval=args.val_check_interval,
         logger=wandb_logger,
         callbacks = callbacks,
-        accelerator=args.accelerator,
+        strategy=args.accelerator,
     )
 
     Model = T5

@@ -21,7 +21,7 @@ class Pretrain(Dataset):
             raise Exception(f'Provided the correct dataset version among {dataset_v}')
 
         # dataset for continual training
-        self.dataset = pd.read_csv('data/recent_news_small.csv')
+        self.dataset = pd.read_csv('data/recent_news_full.csv')
         print(f'Length of dataset retrieving is.. {len(self.dataset)}')
         self.input_length = input_length
         self.output_length = output_length

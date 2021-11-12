@@ -11,3 +11,4 @@ deepspeed
 boto3
 datasets==1.10.2
 rouge
+fairscale
