@@ -11,21 +11,23 @@ class Pretrain(Dataset):
         self.tokenizer = tokenizer
         self.type_path = type_path
         self.dataset_version = self.args.dataset_version
-        if 't5' in args.model_name_or_path:
-            self.model_type='T5'
-        elif 'gpt2' in args.model_name_or_path:
-            self.model_type='GPT2'
-        dataset_v = ['small', 'full']
-        ids_to_answers = None      
+        dataset_v = ['small', 'full']   
         if not self.dataset_version in dataset_v:
             raise Exception(f'Provided the correct dataset version among {dataset_v}')
 
         # dataset for continual training
-        self.dataset = pd.read_csv('data/recent_news_full.csv')
+        if self.args.dataset=='wikipedia_0809':
+            self.dataset = pd.read_csv('data/wikipedia_0809_subset.csv')
+        elif self.args.dataset=='wikipedia_0910':
+            self.dataset = pd.read_csv('data/wikipedia_0910_subset.csv')
+        elif self.args.dataset=='wikipedia_1011':
+            self.dataset = pd.read_csv('data/wikipedia_1011_subset.csv')
+        else:
+            raise Exception('The given dataset does not exist in data directory.')
+        
         print(f'Length of dataset retrieving is.. {len(self.dataset)}')
         self.input_length = input_length
         self.output_length = output_length
-        self.ids_to_answers = ids_to_answers
 
     def __len__(self):
         return len(self.dataset)

@@ -102,7 +102,6 @@ class T5(pl.LightningModule):
         if args.mode == 'pretrain' or args.mode == 'finetune':
             dataset = Pretrain(tokenizer=tokenizer, type_path=type_path, num_samples=num_samples,  input_length=args.max_input_length, 
                             output_length=args.max_output_length, args=args, length=length)
-            self.ids_to_answers = dataset.ids_to_answers
             return dataset
         else:
             raise NameError('Select the correct mode please.')
