@@ -14,14 +14,17 @@ class Pretrain(Dataset):
             raise Exception(f'Provided the correct dataset version among {dataset_v}')
 
         # dataset for continual training
-        if self.args.dataset=='wikipedia_0809':
-            self.dataset = pd.read_csv('data/wikipedia_0809_subset.csv')
-        elif self.args.dataset=='wikipedia_0910':
-            self.dataset = pd.read_csv('data/wikipedia_0910_subset.csv')
-        elif self.args.dataset=='wikipedia_1011':
-            self.dataset = pd.read_csv('data/wikipedia_1011_subset.csv')
+        if self.type_path=='train':
+            if self.args.dataset=='wikipedia_0809':
+                self.dataset = pd.read_csv('data/wikipedia_0809_subset.csv')
+            elif self.args.dataset=='wikipedia_0910':
+                self.dataset = pd.read_csv('data/wikipedia_0910_subset.csv')
+            elif self.args.dataset=='wikipedia_1011':
+                self.dataset = pd.read_csv('data/wikipedia_1011_subset.csv')
+            else:
+                raise Exception('The given dataset does not exist in data directory.')
         else:
-            raise Exception('The given dataset does not exist in data directory.')
+            self.dataset = pd.read_csv('data/invariantLAMA.csv')
         
         print(f'Length of dataset retrieving is.. {len(self.dataset)}')
         self.input_length = input_length

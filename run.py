@@ -111,7 +111,7 @@ if __name__ == '__main__':
         gradient_clip_val=args.max_grad_norm,
         enable_checkpointing=checkpoint_callback,
         val_check_interval=args.val_check_interval,
-        logger=wandb_logger,
+        logger = wandb_logger,
         callbacks = callbacks,
         strategy=args.accelerator,
     )

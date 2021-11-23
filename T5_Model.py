@@ -88,7 +88,7 @@ class T5(pl.LightningModule):
         accuracy /= len(predictions)
         return em_score*100, accuracy*100
 
-    def calculate_f1_scores(self, predictions, ground_truths, ids):
+    def calculate_f1_scores(self, predictions, ground_truths):
         f1_score = 0 
         for i in range(len(predictions)):
             ground_truth = ground_truths[i]
@@ -151,14 +151,13 @@ class T5(pl.LightningModule):
             attention_mask=batch["source_mask"],
             use_cache=True,
             decoder_attention_mask=batch['target_mask'],
-            max_length=self.hparams.max_output_length,
+            max_length=4,
             num_beams=2,
             early_stopping=True
         )
         
         preds = self.ids_to_clean_text(generated_ids)
         targets = self.ids_to_clean_text(batch["target_ids"])
-        ids = batch["label_ids"]
         source = self.ids_to_clean_text(batch["source_ids"])
         print("preds", preds)
         print("targets", targets)
@@ -172,7 +171,7 @@ class T5(pl.LightningModule):
         f1_score = 0
 
         em_score, accuracy = self.calculate_scores(preds, targets)
-        f1_score = self.calculate_f1_scores(preds, targets, ids)
+        f1_score = self.calculate_f1_scores(preds, targets)
 
         em_score = torch.tensor(em_score,dtype=torch.float32)
         accuracy = torch.tensor(accuracy,dtype=torch.float32)
@@ -228,12 +227,9 @@ class T5(pl.LightningModule):
         return dataloader
 
     def val_dataloader(self):
-        if self.hparams.mode == 'pretrain':
-            return None
-        else: 
-            n_samples = self.n_obs['validation']
-            validation_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="validation", num_samples=n_samples, args=self.hparams,)
-            return DataLoader(validation_dataset, batch_size=self.hparams.eval_batch_size, num_workers=self.hparams.num_workers, shuffle=False)
+        n_samples = self.n_obs['validation']
+        validation_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="validation", num_samples=n_samples, args=self.hparams,)
+        return DataLoader(validation_dataset, batch_size=self.hparams.eval_batch_size, num_workers=self.hparams.num_workers, shuffle=False)
     
     def test_dataloader(self):
         n_samples = self.n_obs['test']
