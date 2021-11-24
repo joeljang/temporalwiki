@@ -15,14 +15,19 @@ class Pretrain(Dataset):
 
         # dataset for continual training
         if self.type_path=='train':
-            if self.args.dataset=='wikipedia_0809':
-                self.dataset = pd.read_csv('data/wikipedia_0809_subset.csv')
-            elif self.args.dataset=='wikipedia_0910':
-                self.dataset = pd.read_csv('data/wikipedia_0910_subset.csv')
-            elif self.args.dataset=='wikipedia_1011':
-                self.dataset = pd.read_csv('data/wikipedia_1011_subset.csv')
+            if self.dataset_version=='small':
+                self.dataset = pd.read_csv('data/recent_news_small.csv')
             else:
-                raise Exception('The given dataset does not exist in data directory.')
+                if self.args.dataset=='wikipedia_08':
+                    self.dataset = pd.read_csv('data/wikipedia_08.csv')
+                elif self.args.dataset=='wikipedia_0809':
+                    self.dataset = pd.read_csv('data/wikipedia_0809_subset.csv')
+                elif self.args.dataset=='wikipedia_0910':
+                    self.dataset = pd.read_csv('data/wikipedia_0910_subset.csv')
+                elif self.args.dataset=='wikipedia_1011':
+                    self.dataset = pd.read_csv('data/wikipedia_1011_subset.csv')
+                else:
+                    raise Exception('The given dataset does not exist in data directory.')
         else:
             self.dataset = pd.read_csv('data/invariantLAMA.csv')
         

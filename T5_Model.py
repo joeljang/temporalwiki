@@ -16,6 +16,9 @@ import re
 import string
 import copy
 
+from deepspeed.runtime.lr_schedules import WarmupDecayLR
+from deepspeed.ops.adam import DeepSpeedCPUAdam
+
 class T5(pl.LightningModule):
     def __init__(self, hparams):
         super(T5, self).__init__()
@@ -191,6 +194,7 @@ class T5(pl.LightningModule):
     def configure_optimizers(self, train_len=None):
         "Prepare optimizer and schedule (linear warmup and decay)"
         model = self.model
+        '''
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
@@ -204,18 +208,18 @@ class T5(pl.LightningModule):
         ]
         
         optimizer = Adafactor(optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False)
+        '''
+        optimizer = DeepSpeedCPUAdam(model.parameters(), lr=self.hparams.learning_rate)
 
         if self.hparams.use_lr_scheduling:
             len_data = len(self.train_dataloader())
             denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps)
-            '''
-            denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps) // 3 # Do not decay learning rate to 0 for small set 
-            if self.hparams.dataset_version=='full':
-                denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps) // 2 # Do not decay learning rate to 0 for full set 
-            '''
+
             steps_per_epoch = ( len_data // denomniator ) + 1
-            lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.hparams.learning_rate, steps_per_epoch=steps_per_epoch, pct_start=0.1, epochs=self.hparams.num_train_epochs, anneal_strategy='linear', cycle_momentum=False)
-            return [optimizer], [{"scheduler": lr_scheduler, "interval": "step", "name": "learning rate"}]
+            total_num_steps = steps_per_epoch * self.hparams.num_train_epochs
+            #scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.hparams.learning_rate, steps_per_epoch=steps_per_epoch, pct_start=0.1, epochs=self.hparams.num_train_epochs, anneal_strategy='linear', cycle_momentum=False)
+            scheduler = WarmupDecayLR(optimizer, total_num_steps = total_num_steps ,warmup_max_lr = self.hparams.learning_rate, warmup_num_steps = int(total_num_steps * 0.1))
+            return [optimizer], [{"scheduler": scheduler, "interval": "step", "name": "learning rate"}]
         else:
             return [optimizer]
 

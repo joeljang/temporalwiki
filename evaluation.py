@@ -66,11 +66,10 @@ def evaluate(args, Model):
                 ground_truth = targets[i]
                 predicted = dec[i]
                 # print("prediction:",total_cnt,predicted)
-                ids = batch['label_ids'][i].item()
 
                 if args.dataset == 'invariantlama':
                     em = model.exact_match_score(predicted, ground_truth)  
-                    writer.writerow([ids, lines, ground_truth, predicted])
+                    writer.writerow([lines, ground_truth, predicted])
                     if em == 1:
                         em_correct_num+=1
                 else:
