@@ -23,5 +23,5 @@
     "use_lr_scheduling" : true,
     "check_validation" : true,
     "checkpoint_path" : "",
-    "output_log": "log/"
+    "output_log": "log/IL_notemplate.csv"
 }

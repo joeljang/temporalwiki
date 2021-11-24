@@ -49,12 +49,15 @@ if __name__ == '__main__':
         hparam.weight_decay = 0.0
     if 'output_log' not in hparam:
         hparam.output_log = None
+    if 'len_data' not in hparam:
+        hparam.len_data = None
         
     #Setting configurations
     args_dict = dict(
         output_dir=hparam.output_dir, # Path to save the checkpoints
         dataset=hparam.dataset,
         dataset_version = hparam.dataset_version,
+        len_data = hparam.len_data,
         model_name_or_path=hparam.model,
         method=hparam.method,
         mode=hparam.mode,

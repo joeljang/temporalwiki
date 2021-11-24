@@ -29,7 +29,14 @@ class Pretrain(Dataset):
                 else:
                     raise Exception('The given dataset does not exist in data directory.')
         else:
-            self.dataset = pd.read_csv('data/invariantLAMA.csv')
+            if self.args.dataset=='IL':
+                self.dataset = pd.read_csv('data/IL.csv')
+            elif self.args.dataset=='IL_template':
+                self.dataset = pd.read_csv('data/IL_template.csv')
+            elif self.args.dataset=='IL_notemplate':
+                self.dataset = pd.read_csv('data/IL_notemplate.csv')
+            else:
+                raise Exception('The given dataset does not exist in data directory.')
         
         print(f'Length of dataset retrieving is.. {len(self.dataset)}')
         self.input_length = input_length

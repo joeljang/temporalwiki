@@ -67,13 +67,11 @@ def evaluate(args, Model):
                 predicted = dec[i]
                 # print("prediction:",total_cnt,predicted)
 
-                if args.dataset == 'invariantlama':
-                    em = model.exact_match_score(predicted, ground_truth)  
-                    writer.writerow([lines, ground_truth, predicted])
-                    if em == 1:
-                        em_correct_num+=1
-                else:
-                    raise NameError('Select the correct Dataset for zeroshot evaluation!')
+                em = model.exact_match_score(predicted, ground_truth)  
+                writer.writerow([lines, ground_truth, predicted])
+                if em == 1:
+                    em_correct_num+=1
+                
     print(f'Number of total validation data: {total_cnt}')
     with open(args.output_log, 'a', newline='') as writefile:  
         writer = csv.writer(writefile)

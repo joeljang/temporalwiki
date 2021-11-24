@@ -212,7 +212,7 @@ class T5(pl.LightningModule):
         optimizer = DeepSpeedCPUAdam(model.parameters(), lr=self.hparams.learning_rate)
 
         if self.hparams.use_lr_scheduling:
-            len_data = len(self.train_dataloader())
+            len_data = self.hparams.len_data
             denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps)
 
             steps_per_epoch = ( len_data // denomniator ) + 1
