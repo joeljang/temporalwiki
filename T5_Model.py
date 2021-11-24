@@ -6,7 +6,7 @@ from transformers import (
     T5ForConditionalGeneration,
 )
 import torch
-from Datasets import Pretrain
+from Datasets import Pretrain, Iterable_Pretrain
 from torch.utils.data import RandomSampler
 from torch.utils.data import DataLoader, ConcatDataset
 from rouge import Rouge
@@ -102,12 +102,12 @@ class T5(pl.LightningModule):
         return f1_score*100
 
     def get_dataset(self, tokenizer, type_path, num_samples, args, length=None):
-        if args.mode == 'pretrain' or args.mode == 'finetune':
+        if type_path=='train':
+            dataset = Iterable_Pretrain(tokenizer=tokenizer, input_length=args.max_input_length, output_length=args.max_output_length, args=args)
+        else:
             dataset = Pretrain(tokenizer=tokenizer, type_path=type_path, num_samples=num_samples,  input_length=args.max_input_length, 
                             output_length=args.max_output_length, args=args, length=length)
-            return dataset
-        else:
-            raise NameError('Select the correct mode please.')
+        return dataset
              
     def lmap(self, f, x):
         """list(map(f, x))"""
@@ -223,11 +223,21 @@ class T5(pl.LightningModule):
         else:
             return [optimizer]
 
+    def worker_init_fn():
+        worker_info = torch.utils.data.get_worker_info()
+        
+        dataset = worker_info.dataset
+        worker_id = worker_info.id
+        split_size = len(dataset.data) // worker_info.num_workers
+        
+        dataset.data = dataset.data[worker_id * split_size: (worker_id + 1) * split_size]
+        
     def train_dataloader(self):
         n_samples = self.n_obs['train']    
         train_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="train", num_samples=n_samples, args=self.hparams)
-        sampler = RandomSampler(train_dataset)
-        dataloader = DataLoader(train_dataset, sampler=sampler,  batch_size=self.hparams.train_batch_size, drop_last=True, num_workers=self.hparams.num_workers)
+        #sampler = RandomSampler(train_dataset)
+        #dataloader = DataLoader(train_dataset, sampler=sampler,  batch_size=self.hparams.train_batch_size, drop_last=True, num_workers=self.hparams.num_workers)
+        dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size, num_workers=self.hparams.num_workers, worker_init_fn=worker_init_fn)
         return dataloader
 
     def val_dataloader(self):

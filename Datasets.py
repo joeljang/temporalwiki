@@ -1,4 +1,4 @@
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, IterableDataset
 import pandas as pd
 import json
 import random
@@ -65,3 +65,36 @@ class Pretrain(Dataset):
         target_mask = targets["attention_mask"].squeeze()
 
         return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}
+
+class Iterable_Pretrain(IterableDataset):
+    def __init__(self, tokenizer, input_length, output_length, args):
+        self.args = args
+        self.tokenizer = tokenizer
+        self.dataset_version = self.args.dataset_version
+        dataset_v = ['small', 'full']   
+        if not self.dataset_version in dataset_v:
+            raise Exception(f'Provided the correct dataset version among {dataset_v}')
+
+        # dataset for continual training
+        if self.dataset_version=='small':
+            self.data_path =  'data/recent_news_small.csv'
+        else:
+            if self.args.dataset=='wikipedia_08':
+                self.data_path = 'data/wikipedia_08.csv'
+            elif self.args.dataset=='wikipedia_0809':
+                self.data_path = 'data/wikipedia_0809_subset.csv'
+            elif self.args.dataset=='wikipedia_0910':
+                self.data_path = 'data/wikipedia_0910_subset.csv'
+            elif self.args.dataset=='wikipedia_1011':
+                self.data_path = 'data/wikipedia_1011_subset.csv'
+            else:
+                raise Exception('The given dataset does not exist in data directory.')
+        
+        self.input_length = input_length
+        self.output_length = output_length
+
+    def __iter__(self):
+        iter_csv = pd.read_csv(self.data_path, iterator=True, chunksize=1)
+        for line in iter_csv:
+            line = line['text'].item()
+            yield line
