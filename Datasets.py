@@ -37,7 +37,7 @@ class Pretrain(Dataset):
             elif self.args.dataset=='IL_notemplate':
                 self.dataset = pd.read_csv('data/IL_notemplate.csv')
             else:
-                raise Exception('The given dataset does not exist in data directory.')
+                self.dataset = pd.read_csv('data/IL.csv')
         
         print(f'Length of dataset retrieving is.. {len(self.dataset)}')
         self.input_length = input_length
@@ -68,33 +68,15 @@ class Pretrain(Dataset):
         return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}
     
 class Pretrain_Chunks(Dataset):
-    def __init__(self, tokenizer, input_length, output_length, args):
+    def __init__(self, dataset_name, tokenizer, input_length, output_length, args):
         self.args = args
         self.tokenizer = tokenizer
         self.input_length = input_length
         self.output_length = output_length
-
-        self.data_lst = []
-        # Getting the dirs of data chunks
-        lst = os.listdir(self.args.dataset)
-        lst.sort()
-        for l in lst:
-            self.data_lst.append(self.args.dataset+'/'+l)
-        
-        self.data_index = 0
-        self.dataset = pd.read_csv(self.data_lst[self.data_index])
-        self.data_index_limit = len(self.dataset)
-        self.data_index_total = 0
+        self.dataset = pd.read_csv(dataset_name)
         
     def __len__(self):
-        return self.args.len_data
-    
-    def get_new_chunk(self):
-        self.data_index +=1
-        self.dataset = pd.read_csv(self.data_lst[self.data_index])
-        self.data_index_total += self.data_index_limit
-        self.data_index_limit = len(self.dataset)
-        return 0
+        return len(self.dataset)
 
     def convert_to_features(self, example_batch, index=None):
         # continual pretraining
@@ -105,12 +87,8 @@ class Pretrain_Chunks(Dataset):
         targets = self.tokenizer.batch_encode_plus([str(target_)], max_length=self.output_length, 
                                                     padding='max_length', truncation=True, return_tensors="pt")                          
         return source, targets
-  
+    
     def __getitem__(self, index):
-        index = index - self.data_index_total  
-        if index == self.data_index_limit:
-            index = self.get_new_chunk()
-            
         source, targets = self.convert_to_features(self.dataset.iloc[index])
         
         source_ids = source["input_ids"].squeeze()
@@ -118,5 +96,4 @@ class Pretrain_Chunks(Dataset):
 
         src_mask    = source["attention_mask"].squeeze()
         target_mask = targets["attention_mask"].squeeze()
-
         return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}

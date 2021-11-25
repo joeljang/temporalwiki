@@ -69,7 +69,8 @@ if __name__ == '__main__':
         adam_epsilon=1e-8,
         train_batch_size=hparam.train_batch_size,
         eval_batch_size=hparam.train_batch_size,
-        num_train_epochs=hparam.num_train_epochs,
+        num_train_epochs=int(hparam.num_train_epochs * hparam.num_files),
+        num_files=hparam.num_files,
         gradient_accumulation_steps=hparam.gradient_accumulation_steps,
         n_gpu=hparam.ngpu,
         num_workers=hparam.num_workers,
@@ -91,7 +92,7 @@ if __name__ == '__main__':
     args = argparse.Namespace(**args_dict)
 
     # Defining how to save model checkpoints during training. Details: https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.callbacks.model_checkpoint.html 
-    callbacks = [ModelCheckpoint(dirpath = args.output_dir, every_n_epochs=1)]
+    callbacks = [ModelCheckpoint(dirpath = args.output_dir, every_n_epochs=args.num_files)]
     checkpoint_callback = True
 
     if args.output_dir=="":
@@ -109,11 +110,10 @@ if __name__ == '__main__':
         max_epochs=args.num_train_epochs,
         precision= 16 if args.fp16 else 32,
         amp_backend="native",
-        #amp_level=args.opt_level,
         resume_from_checkpoint=args.resume_from_checkpoint,
         gradient_clip_val=args.max_grad_norm,
         enable_checkpointing=checkpoint_callback,
-        val_check_interval=args.val_check_interval,
+        check_val_every_n_epoch=int(args.num_files // 2),
         logger = wandb_logger,
         callbacks = callbacks,
         strategy=args.accelerator,

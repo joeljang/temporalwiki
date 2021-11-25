@@ -7,7 +7,7 @@ from transformers import (
 )
 import torch
 from Datasets import Pretrain, Pretrain_Chunks
-from torch.utils.data import RandomSampler
+from torch.utils.data import RandomSampler, SequentialSampler
 from torch.utils.data import DataLoader, ConcatDataset
 from rouge import Rouge
 from collections import Counter
@@ -15,6 +15,7 @@ from collections import Counter
 import re
 import string
 import copy
+import os
 
 from deepspeed.runtime.lr_schedules import WarmupDecayLR
 import deepspeed
@@ -26,6 +27,12 @@ class T5(pl.LightningModule):
         self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
         self.tokenizer = T5Tokenizer.from_pretrained(hparams.tokenizer_name_or_path)
         self.output_dir = self.hparams.output_dir
+        self.dataset_lst = []
+        lst = os.listdir(self.hparams.dataset)
+        lst.sort()
+        for l in lst:
+            self.dataset_lst.append(self.hparams.dataset+'/'+l)
+        self.dataset_index = 0
             
         n_observations_per_split = {
             "train": self.hparams.n_train,
@@ -194,21 +201,6 @@ class T5(pl.LightningModule):
     def configure_optimizers(self, train_len=None):
         "Prepare optimizer and schedule (linear warmup and decay)"
         model = self.model
-        '''
-        no_decay = ["bias", "LayerNorm.weight"]
-        optimizer_grouped_parameters = [
-            {
-                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-                "weight_decay": self.hparams.weight_decay,
-            },
-            {
-                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-                "weight_decay": 0.0,
-            },
-        ]
-        
-        optimizer = Adafactor(optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False)
-        '''
         optimizer = deepspeed.ops.adam.FusedAdam(model.parameters(), lr=self.hparams.learning_rate)
 
         if self.hparams.use_lr_scheduling:
@@ -217,15 +209,19 @@ class T5(pl.LightningModule):
 
             steps_per_epoch = ( len_data // denomniator ) + 1
             total_num_steps = steps_per_epoch * self.hparams.num_train_epochs
-            #scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.hparams.learning_rate, steps_per_epoch=steps_per_epoch, pct_start=0.1, epochs=self.hparams.num_train_epochs, anneal_strategy='linear', cycle_momentum=False)
             scheduler = WarmupDecayLR(optimizer, total_num_steps = total_num_steps ,warmup_max_lr = self.hparams.learning_rate, warmup_num_steps = int(total_num_steps * 0.1))
             return [optimizer], [{"scheduler": scheduler, "interval": "step", "name": "learning rate"}]
         else:
             return [optimizer]
-        
+    
+    def on_train_epoch_end(self):
+        self.dataset_index+=1
+        self.train_dataloader()
+
     def train_dataloader(self):
         n_samples = self.n_obs['train']    
-        train_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="train", num_samples=n_samples, args=self.hparams)
+        train_dataset = Pretrain_Chunks(dataset_name=self.dataset_lst[self.dataset_index],tokenizer=self.tokenizer, input_length=self.hparams.max_input_length, output_length=self.hparams.max_output_length, args=self.hparams)
+        #train_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="train", num_samples=n_samples, args=self.hparams)
         sampler = RandomSampler(train_dataset)
         dataloader = DataLoader(train_dataset, sampler=sampler,  batch_size=self.hparams.train_batch_size, drop_last=True, num_workers=self.hparams.num_workers)
         #dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size, num_workers=self.hparams.num_workers)
