@@ -216,6 +216,8 @@ class T5(pl.LightningModule):
     
     def on_train_epoch_end(self):
         self.dataset_index+=1
+        if self.dataset_index==self.hparams.num_files:
+            self.dataset_index=0
         self.train_dataloader()
 
     def train_dataloader(self):

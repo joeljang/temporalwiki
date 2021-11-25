@@ -74,6 +74,7 @@ class Pretrain_Chunks(Dataset):
         self.input_length = input_length
         self.output_length = output_length
         self.dataset = pd.read_csv(dataset_name)
+        print(f'Getting dataset {dataset_name} with length {len(self.dataset)}')
         
     def __len__(self):
         return len(self.dataset)
