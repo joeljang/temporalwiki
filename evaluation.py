@@ -1,6 +1,6 @@
 
 from transformers import T5Tokenizer
-from Datasets import Pretrain
+from Datasets import CustomDataset
 from torch.utils.data import DataLoader
 import csv
 import os
@@ -15,7 +15,7 @@ def evaluate(args, Model):
     tokenizer = T5Tokenizer.from_pretrained(args.model_name_or_path)
     #Get Validation Data
     if args.mode=='pretrain' or args.mode=='finetune':
-        dataset = Pretrain(tokenizer, 'validation', None, input_length=args.max_input_length, 
+        dataset = CustomDataset(tokenizer, 'validation', input_length=args.max_input_length, 
                         output_length=args.max_output_length, args=args)
     else:
         raise Exception('Select the correct mode please.')
