@@ -6,7 +6,7 @@ from transformers import (
     T5ForConditionalGeneration,
 )
 import torch
-from Datasets import Pretrain, Pretrain_Chunks
+from Datasets import CustomDataset, Pretrain_Chunks
 from torch.utils.data import RandomSampler, SequentialSampler
 from torch.utils.data import DataLoader, ConcatDataset
 from rouge import Rouge
@@ -27,19 +27,13 @@ class T5(pl.LightningModule):
         self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
         self.tokenizer = T5Tokenizer.from_pretrained(hparams.tokenizer_name_or_path)
         self.output_dir = self.hparams.output_dir
-        self.dataset_lst = []
-        lst = os.listdir(self.hparams.dataset)
-        lst.sort()
-        for l in lst:
-            self.dataset_lst.append(self.hparams.dataset+'/'+l)
-        self.dataset_index = 0
-            
-        n_observations_per_split = {
-            "train": self.hparams.n_train,
-            "validation": self.hparams.n_val,
-            "test": self.hparams.n_test,
-        }
-        self.n_obs = {k: v if v >= 0 else None for k, v in n_observations_per_split.items()}
+        if self.hparams.mode=='pretrain_brute':
+            self.dataset_lst = []
+            lst = os.listdir(self.hparams.dataset)
+            lst.sort()
+            for l in lst:
+                self.dataset_lst.append(self.hparams.dataset+'/'+l)
+            self.dataset_index = 0
 
     def normalize_answer(self, s):
         """Lower text and remove punctuation, articles and extra whitespace."""
@@ -108,12 +102,9 @@ class T5(pl.LightningModule):
         f1_score /= len(predictions)
         return f1_score*100
 
-    def get_dataset(self, tokenizer, type_path, num_samples, args, length=None):
-        if type_path=='train':
-            dataset = Pretrain_Chunks(tokenizer=tokenizer, input_length=args.max_input_length, output_length=args.max_output_length, args=args)
-        else:
-            dataset = Pretrain(tokenizer=tokenizer, type_path=type_path, num_samples=num_samples,  input_length=args.max_input_length, 
-                            output_length=args.max_output_length, args=args, length=length)
+    def get_dataset(self, tokenizer, type_path, args, length=None):
+        dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
+                        output_length=args.max_output_length, args=args, length=length)
         return dataset
              
     def lmap(self, f, x):
@@ -204,7 +195,10 @@ class T5(pl.LightningModule):
         optimizer = deepspeed.ops.adam.FusedAdam(model.parameters(), lr=self.hparams.learning_rate)
 
         if self.hparams.use_lr_scheduling:
-            len_data = self.hparams.len_data
+            if self.hparams.len_data==None:
+                len_data = len(self.train_dataloader())
+            else:
+                len_data = int(self.hparams.len_data // self.hparams.train_batch_size)
             denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps)
 
             steps_per_epoch = ( len_data // denomniator ) + 1
@@ -215,27 +209,27 @@ class T5(pl.LightningModule):
             return [optimizer]
     
     def on_train_epoch_end(self):
-        self.dataset_index+=1
-        if self.dataset_index==self.hparams.num_files:
-            self.dataset_index=0
-        self.train_dataloader()
+        if self.hparams.mode=='pretrain_brute':
+            self.dataset_index+=1
+            if self.dataset_index==self.hparams.num_files:
+                self.dataset_index=0
+            self.train_dataloader()
 
-    def train_dataloader(self):
-        n_samples = self.n_obs['train']    
-        train_dataset = Pretrain_Chunks(dataset_name=self.dataset_lst[self.dataset_index],tokenizer=self.tokenizer, input_length=self.hparams.max_input_length, output_length=self.hparams.max_output_length, args=self.hparams)
-        #train_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="train", num_samples=n_samples, args=self.hparams)
+    def train_dataloader(self): 
+        if self.hparams.mode=='pretrain_brute':
+            train_dataset = Pretrain_Chunks(dataset_name=self.dataset_lst[self.dataset_index],tokenizer=self.tokenizer, input_length=self.hparams.max_input_length, output_length=self.hparams.max_output_length, args=self.hparams)
+        else:
+            train_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="train", args=self.hparams)
         sampler = RandomSampler(train_dataset)
         dataloader = DataLoader(train_dataset, sampler=sampler,  batch_size=self.hparams.train_batch_size, drop_last=True, num_workers=self.hparams.num_workers)
         #dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size, num_workers=self.hparams.num_workers)
         return dataloader
 
     def val_dataloader(self):
-        n_samples = self.n_obs['validation']
-        validation_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="validation", num_samples=n_samples, args=self.hparams,)
+        validation_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="validation", args=self.hparams,)
         return DataLoader(validation_dataset, batch_size=self.hparams.eval_batch_size, num_workers=self.hparams.num_workers, shuffle=False)
     
     def test_dataloader(self):
-        n_samples = self.n_obs['test']
-        test_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="test", num_samples=n_samples, args=self.hparams)
+        test_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="test", args=self.hparams)
         
         return DataLoader(test_dataset, batch_size=self.hparams.eval_batch_size, num_workers=self.hparams.num_workers, shuffle=False)

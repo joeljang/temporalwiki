@@ -4,8 +4,8 @@ import json
 import random
 import os
 
-class Pretrain(Dataset):
-    def __init__(self, tokenizer, type_path, num_samples, input_length, output_length, args, length=None):
+class CustomDataset(Dataset):
+    def __init__(self, tokenizer, type_path, input_length, output_length, args, length=None):
         self.args = args
         self.tokenizer = tokenizer
         self.type_path = type_path

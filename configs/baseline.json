@@ -21,7 +21,7 @@
     "wandb_log": true,
     "wandb_project": "ever_changing",
     "wandb_run_name" : "T5_base_08",
-    "mode" : "pretrain",
+    "mode" : "pretrain_brute",
     "use_lr_scheduling" : true,
     "check_validation" : false,
     "checkpoint_path" : ""

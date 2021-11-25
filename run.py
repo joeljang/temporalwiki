@@ -51,6 +51,8 @@ if __name__ == '__main__':
         hparam.output_log = None
     if 'len_data' not in hparam:
         hparam.len_data = None
+    if 'num_files' not in hparam:
+        hparam.num_files = 1
         
     #Setting configurations
     args_dict = dict(
@@ -77,9 +79,6 @@ if __name__ == '__main__':
         resume_from_checkpoint=hparam.resume_from_checkpoint, 
         use_lr_scheduling = hparam.use_lr_scheduling,
         val_check_interval = 1.0,
-        n_val=-1,
-        n_train=-1,
-        n_test=-1,
         fp16=hparam.fp16,
         opt_level='O1', # you can find out more on optimisation levels here https://nvidia.github.io/apex/amp.html#opt-levels-and-properties
         max_grad_norm=hparam.grad_norm, # if you enable 16-bit training then set this to a sensible value, 0.5 is a good default
@@ -113,7 +112,7 @@ if __name__ == '__main__':
         resume_from_checkpoint=args.resume_from_checkpoint,
         gradient_clip_val=args.max_grad_norm,
         enable_checkpointing=checkpoint_callback,
-        check_val_every_n_epoch=int(args.num_files // 2),
+        check_val_every_n_epoch= 1 if args.num_files==1 else int(args.num_files // 2),
         logger = wandb_logger,
         callbacks = callbacks,
         strategy=args.accelerator,
