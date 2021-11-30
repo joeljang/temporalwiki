@@ -34,6 +34,8 @@ class T5(pl.LightningModule):
             for l in lst:
                 self.dataset_lst.append(self.hparams.dataset+'/'+l)
             self.dataset_index = 0
+        self.global_epoch=0
+        self.log('global_epoch', self.global_epoch, prog_bar=True, logger=True)
 
     def normalize_answer(self, s):
         """Lower text and remove punctuation, articles and extra whitespace."""
@@ -146,13 +148,12 @@ class T5(pl.LightningModule):
     
      
     def _generative_step(self, batch, batch_idx):     
-        
         generated_ids = self.model.generate(
             batch["source_ids"],
             attention_mask=batch["source_mask"],
             use_cache=True,
             decoder_attention_mask=batch['target_mask'],
-            max_length=4,
+            max_length=10,
             num_beams=2,
             early_stopping=True
         )
@@ -177,9 +178,27 @@ class T5(pl.LightningModule):
         em_score = torch.tensor(em_score,dtype=torch.float32)
         accuracy = torch.tensor(accuracy,dtype=torch.float32)
         f1_score = torch.tensor(f1_score, dtype=torch.float32)
-
-        self.log('em_score', em_score, prog_bar=True, logger=True)
-        self.log('f1_score', f1_score, prog_bar=True, logger=True)
+        if self.hparams.dataset=='recent_news':
+            '''
+            if (batch_idx < (17473//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+                self.log('IL_em_score', em_score, prog_bar=True, logger=True)
+                self.log('IL_f1_score', f1_score, prog_bar=True, logger=True)
+            elif (batch_idx < (18396//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+                self.log('UL_em_score', em_score, prog_bar=True, logger=True)
+                self.log('UL_f1_score', f1_score, prog_bar=True, logger=True)
+            else:
+                self.log('NL_em_score', em_score, prog_bar=True, logger=True)
+                self.log('NL_f1_score', f1_score, prog_bar=True, logger=True)
+            '''
+            if (batch_idx < (17473//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+                self.log('IL_em_score', em_score, prog_bar=True, logger=True)
+                self.log('IL_f1_score', f1_score, prog_bar=True, logger=True)
+            else:
+                self.log('NLE_em_score', em_score, prog_bar=True, logger=True)
+                self.log('NLE_f1_score', f1_score, prog_bar=True, logger=True)
+        else:
+            self.log('em_score', em_score, prog_bar=True, logger=True)
+            self.log('f1_score', f1_score, prog_bar=True, logger=True)
 
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
@@ -203,6 +222,7 @@ class T5(pl.LightningModule):
 
             steps_per_epoch = ( len_data // denomniator ) + 1
             total_num_steps = steps_per_epoch * self.hparams.num_train_epochs
+            print(f'total number of steps : {total_num_steps}')
             scheduler = WarmupDecayLR(optimizer, total_num_steps = total_num_steps ,warmup_max_lr = self.hparams.learning_rate, warmup_num_steps = int(total_num_steps * 0.1))
             return [optimizer], [{"scheduler": scheduler, "interval": "step", "name": "learning rate"}]
         else:
@@ -212,6 +232,8 @@ class T5(pl.LightningModule):
         if self.hparams.mode=='pretrain_brute':
             self.dataset_index+=1
             if self.dataset_index==self.hparams.num_files:
+                self.global_epoch+=1
+                self.log('global_epoch', self.global_epoch, prog_bar=True, logger=True)
                 self.dataset_index=0
             self.train_dataloader()
 
