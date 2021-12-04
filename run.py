@@ -111,7 +111,7 @@ if __name__ == '__main__':
         resume_from_checkpoint=args.resume_from_checkpoint,
         gradient_clip_val=args.max_grad_norm,
         enable_checkpointing=checkpoint_callback,
-        check_val_every_n_epoch= args.num_files,
+        check_val_every_n_epoch= (args.num_files//4),
         logger = wandb_logger,
         callbacks = callbacks,
         strategy=args.accelerator,

@@ -2,12 +2,12 @@
     "input_length" : 25,
     "output_length" : 4,
     "num_train_epochs" : 1,
-    "output_dir" : "outputs/T5_large",
-    "dataset" : "IL_notemplate",
+    "output_dir" : "outputs/T5_base",
+    "dataset" : "IL",
     "dataset_version" : "small",
     "train_batch_size" : 8,
     "learning_rate" : 1e-4,
-    "model" : "google/t5-large-ssm",
+    "model" : "t5-base",
     "method": "baseline",
     "gradient_accumulation_steps" : 1,
     "ngpu" : 1,
@@ -15,7 +15,7 @@
     "resume_from_checkpoint" : null,
     "accelerator" : "deepspeed_stage_2_offload",
     "fp16" : true,
-    "CUDA_VISIBLE_DEVICES" : "3",
+    "CUDA_VISIBLE_DEVICES" : "0",
     "wandb_log": false,
     "wandb_project": "ever_changing",
     "wandb_run_name" : "T5_small_0809_subset",
@@ -23,5 +23,5 @@
     "use_lr_scheduling" : true,
     "check_validation" : true,
     "checkpoint_path" : "",
-    "output_log": "log/"
+    "output_log": "log/Il.csv"
 }

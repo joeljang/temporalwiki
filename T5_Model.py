@@ -16,6 +16,7 @@ import re
 import string
 import copy
 import os
+import random
 
 from deepspeed.runtime.lr_schedules import WarmupDecayLR
 import deepspeed
@@ -30,7 +31,8 @@ class T5(pl.LightningModule):
         if self.hparams.mode=='pretrain_brute':
             self.dataset_lst = []
             lst = os.listdir(self.hparams.dataset)
-            lst.sort()
+            #lst.sort()
+            random.shuffle(lst)
             for l in lst:
                 self.dataset_lst.append(self.hparams.dataset+'/'+l)
             self.dataset_index = 0
@@ -221,7 +223,7 @@ class T5(pl.LightningModule):
             denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps)
 
             steps_per_epoch = ( len_data // denomniator ) + 1
-            total_num_steps = steps_per_epoch * self.hparams.num_train_epochs
+            total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs )
             print(f'total number of steps : {total_num_steps}')
             scheduler = WarmupDecayLR(optimizer, total_num_steps = total_num_steps ,warmup_max_lr = self.hparams.learning_rate, warmup_num_steps = int(total_num_steps * 0.1))
             return [optimizer], [{"scheduler": scheduler, "interval": "step", "name": "learning rate"}]
