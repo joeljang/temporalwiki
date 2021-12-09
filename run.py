@@ -89,8 +89,14 @@ if __name__ == '__main__':
     )
     args = argparse.Namespace(**args_dict)
 
+    #Setting different val & checkpoint saving config for mode
+    if args.mode=='pretrain_brute':
+        saving_epoch = (args.num_files//2)
+    else:
+        saving_epoch = 1
+
     # Defining how to save model checkpoints during training. Details: https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.callbacks.model_checkpoint.html 
-    callbacks = [ModelCheckpoint(dirpath = args.output_dir, every_n_epochs=(args.num_files//2), save_top_k=-1)]
+    callbacks = [ModelCheckpoint(dirpath = args.output_dir, every_n_epochs=saving_epoch,save_top_k=-1)]
     checkpoint_callback = True
 
     if args.output_dir=="":
@@ -100,6 +106,8 @@ if __name__ == '__main__':
     # Logging Learning Rate Scheduling
     if args.use_lr_scheduling and hparam.wandb_log:
         callbacks.append(pl.callbacks.LearningRateMonitor())
+
+    
 
     # Setting Flags for pytorch lightning trainer. Details: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#trainer-flags
     train_params = dict(
@@ -111,7 +119,7 @@ if __name__ == '__main__':
         resume_from_checkpoint=args.resume_from_checkpoint,
         gradient_clip_val=args.max_grad_norm,
         enable_checkpointing=checkpoint_callback,
-        check_val_every_n_epoch= (args.num_files//2),
+        check_val_every_n_epoch= saving_epoch,
         logger = wandb_logger,
         callbacks = callbacks,
         strategy=args.accelerator,

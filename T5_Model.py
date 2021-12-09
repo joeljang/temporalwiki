@@ -213,7 +213,7 @@ class T5(pl.LightningModule):
     def configure_optimizers(self, train_len=None):
         "Prepare optimizer and schedule (linear warmup and decay)"
         model = self.model
-        optimizer = deepspeed.ops.adam.FusedAdam(model.parameters(), lr=self.hparams.learning_rate, weight_decay=hparams.weight_decay)
+        optimizer = deepspeed.ops.adam.FusedAdam(model.parameters(), lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
 
         if self.hparams.use_lr_scheduling:
             if self.hparams.len_data==None:
