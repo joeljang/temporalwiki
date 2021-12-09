@@ -13,7 +13,7 @@
     "ngpu" : 1,
     "num_workers" : 40,
     "resume_from_checkpoint" : null,
-    "accelerator" : "deepspeed_stage_2_offload",
+    "accelerator" : "deepspeed_stage_2",
     "fp16" : true,
     "CUDA_VISIBLE_DEVICES" : "0",
     "wandb_log": false,

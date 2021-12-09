@@ -45,7 +45,7 @@ if __name__ == '__main__':
     if 'grad_norm' not in hparam:
         hparam.grad_norm = 0.5
     if 'weight_decay' not in hparam:
-        hparam.weight_decay = 0.0
+        hparam.weight_decay = 0.01
     if 'output_log' not in hparam:
         hparam.output_log = None
     if 'len_data' not in hparam:
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     args = argparse.Namespace(**args_dict)
 
     # Defining how to save model checkpoints during training. Details: https://pytorch-lightning.readthedocs.io/en/stable/api/pytorch_lightning.callbacks.model_checkpoint.html 
-    callbacks = [ModelCheckpoint(dirpath = args.output_dir, every_n_epochs=args.num_files)]
+    callbacks = [ModelCheckpoint(dirpath = args.output_dir, every_n_epochs=(args.num_files//2), save_top_k=-1)]
     checkpoint_callback = True
 
     if args.output_dir=="":
@@ -111,7 +111,7 @@ if __name__ == '__main__':
         resume_from_checkpoint=args.resume_from_checkpoint,
         gradient_clip_val=args.max_grad_norm,
         enable_checkpointing=checkpoint_callback,
-        check_val_every_n_epoch= (args.num_files//4),
+        check_val_every_n_epoch= (args.num_files//2),
         logger = wandb_logger,
         callbacks = callbacks,
         strategy=args.accelerator,

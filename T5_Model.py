@@ -31,8 +31,8 @@ class T5(pl.LightningModule):
         if self.hparams.mode=='pretrain_brute':
             self.dataset_lst = []
             lst = os.listdir(self.hparams.dataset)
-            #lst.sort()
-            random.shuffle(lst)
+            lst.sort()
+            #random.shuffle(lst)
             for l in lst:
                 self.dataset_lst.append(self.hparams.dataset+'/'+l)
             self.dataset_index = 0
@@ -155,7 +155,7 @@ class T5(pl.LightningModule):
             attention_mask=batch["source_mask"],
             use_cache=True,
             decoder_attention_mask=batch['target_mask'],
-            max_length=10,
+            max_length=4,
             num_beams=2,
             early_stopping=True
         )
@@ -213,7 +213,7 @@ class T5(pl.LightningModule):
     def configure_optimizers(self, train_len=None):
         "Prepare optimizer and schedule (linear warmup and decay)"
         model = self.model
-        optimizer = deepspeed.ops.adam.FusedAdam(model.parameters(), lr=self.hparams.learning_rate)
+        optimizer = deepspeed.ops.adam.FusedAdam(model.parameters(), lr=self.hparams.learning_rate, weight_decay=hparams.weight_decay)
 
         if self.hparams.use_lr_scheduling:
             if self.hparams.len_data==None:
@@ -223,7 +223,7 @@ class T5(pl.LightningModule):
             denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps)
 
             steps_per_epoch = ( len_data // denomniator ) + 1
-            total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs )
+            total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 2
             print(f'total number of steps : {total_num_steps}')
             scheduler = WarmupDecayLR(optimizer, total_num_steps = total_num_steps ,warmup_max_lr = self.hparams.learning_rate, warmup_num_steps = int(total_num_steps * 0.1))
             return [optimizer], [{"scheduler": scheduler, "interval": "step", "name": "learning rate"}]
