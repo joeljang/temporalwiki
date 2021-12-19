@@ -155,7 +155,7 @@ class T5(pl.LightningModule):
             attention_mask=batch["source_mask"],
             use_cache=True,
             decoder_attention_mask=batch['target_mask'],
-            max_length=4,
+            max_length=10,
             num_beams=2,
             early_stopping=True
         )
@@ -180,24 +180,16 @@ class T5(pl.LightningModule):
         em_score = torch.tensor(em_score,dtype=torch.float32)
         accuracy = torch.tensor(accuracy,dtype=torch.float32)
         f1_score = torch.tensor(f1_score, dtype=torch.float32)
-        if self.hparams.dataset=='recent_news':
-            '''
-            if (batch_idx < (17473//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('IL_em_score', em_score, prog_bar=True, logger=True)
-                self.log('IL_f1_score', f1_score, prog_bar=True, logger=True)
-            elif (batch_idx < (18396//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+        if self.hparams.dataset=='data/wikipedia_09' or self.hparams.dataset=='wikipedia_0809':
+            if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+                self.log('UnL_em_score', em_score, prog_bar=True, logger=True)
+                self.log('UnL_f1_score', f1_score, prog_bar=True, logger=True)
+            elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
                 self.log('UL_em_score', em_score, prog_bar=True, logger=True)
                 self.log('UL_f1_score', f1_score, prog_bar=True, logger=True)
             else:
                 self.log('NL_em_score', em_score, prog_bar=True, logger=True)
                 self.log('NL_f1_score', f1_score, prog_bar=True, logger=True)
-            '''
-            if (batch_idx < (17473//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('IL_em_score', em_score, prog_bar=True, logger=True)
-                self.log('IL_f1_score', f1_score, prog_bar=True, logger=True)
-            else:
-                self.log('NLE_em_score', em_score, prog_bar=True, logger=True)
-                self.log('NLE_f1_score', f1_score, prog_bar=True, logger=True)
         else:
             self.log('em_score', em_score, prog_bar=True, logger=True)
             self.log('f1_score', f1_score, prog_bar=True, logger=True)
@@ -213,7 +205,21 @@ class T5(pl.LightningModule):
     def configure_optimizers(self, train_len=None):
         "Prepare optimizer and schedule (linear warmup and decay)"
         model = self.model
-        optimizer = deepspeed.ops.adam.FusedAdam(model.parameters(), lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+        
+        no_decay = ["bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": self.hparams.weight_decay,
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0,
+            },
+        ]
+
+        optimizer = deepspeed.ops.adam.FusedAdam(optimizer_grouped_parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+        #optimizer = Adafactor(optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False)
 
         if self.hparams.use_lr_scheduling:
             if self.hparams.len_data==None:

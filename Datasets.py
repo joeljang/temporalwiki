@@ -47,6 +47,12 @@ class CustomDataset(Dataset):
                 #df1 = pd.concat([df1, df2])
                 #self.dataset = pd.concat([df1, df3])
                 print(f'length of validataion dataset: {len(self.dataset)}')
+            elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809':
+                df1 = pd.read_csv('data/UnL_0809.csv')
+                df2 = pd.read_csv('data/UpL_0809.csv')
+                df3 = pd.read_csv('data/NL_0809.csv')
+                df1 = pd.concat([df1, df2])
+                self.dataset = pd.concat([df1, df3])
             else:
                 self.dataset = pd.read_csv('data/IL.csv')
         
@@ -59,8 +65,14 @@ class CustomDataset(Dataset):
 
     def convert_to_features(self, example_batch, index=None):
         # continual pretraining
-        input_ = example_batch['input']
-        target_ = example_batch['output']
+        if self.type_path=='validation' and (self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809'):
+            s = example_batch['subject']
+            r = example_batch['relation']
+            input_ = s + ' ' + r + ' <extra_id_0> .' 
+            target_ = example_batch['objective']
+        else:
+            input_ = example_batch['input']
+            target_ = example_batch['output']
         source = self.tokenizer.batch_encode_plus([str(input_)], max_length=self.input_length, 
                                                     padding='max_length', truncation=True, return_tensors="pt")
         targets = self.tokenizer.batch_encode_plus([str(target_)], max_length=self.output_length, 
