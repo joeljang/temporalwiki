@@ -9,6 +9,7 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from T5_Model import T5
+from GPT2_Model import GPT2
 
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
@@ -124,8 +125,12 @@ if __name__ == '__main__':
         callbacks = callbacks,
         strategy=args.accelerator,
     )
-
-    Model = T5
+    if 't5' in args.model_name_or_path:
+        Model = T5
+    elif 'gpt2' in args.model_name_or_path: 
+        Model = GPT2
+    else:
+        raise Exception('currently not supporting given model')
     
     if args.check_validation_only:
        evaluate(args, Model)

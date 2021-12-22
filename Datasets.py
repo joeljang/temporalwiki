@@ -11,6 +11,7 @@ class CustomDataset(Dataset):
         self.type_path = type_path
         self.dataset_version = self.args.dataset_version
         dataset_v = ['small', 'full']   
+            
         if not self.dataset_version in dataset_v:
             raise Exception(f'Provided the correct dataset version among {dataset_v}')
 
@@ -38,7 +39,7 @@ class CustomDataset(Dataset):
                 self.dataset = pd.read_csv('data/IL_template.csv')
             elif self.args.dataset=='IL_notemplate':
                 self.dataset = pd.read_csv('data/IL_notemplate.csv')
-            elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809':
+            elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809' or self.args.dataset=='data/20210901_gpt2':
                 df1 = pd.read_csv('data/UnL_0809.csv')
                 df2 = pd.read_csv('data/UpL_0809.csv')
                 df3 = pd.read_csv('data/NL_0809.csv')
@@ -62,7 +63,13 @@ class CustomDataset(Dataset):
 
     def convert_to_features(self, example_batch, index=None):
         # continual pretraining
-        if self.type_path=='validation' and (self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809'):
+        if 'gpt2' in self.args.model_name_or_path:
+            s = example_batch['subject']
+            r = example_batch['relation']
+            o = example_batch['objective']
+            input_ = s + ' ' + r + ' ' + o 
+            target_ = s + ' ' + r + ' ' + o 
+        elif self.type_path=='validation' and (self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809'):
             s = example_batch['subject']
             r = example_batch['relation']
             input_ = s + ' ' + r + ' <extra_id_0> .' 
@@ -101,8 +108,12 @@ class Pretrain_Chunks(Dataset):
 
     def convert_to_features(self, example_batch, index=None):
         # continual pretraining
-        input_ = example_batch['input']
-        target_ = example_batch['output']
+        if 'gpt2' in self.args.model_name_or_path:
+            input_ = example_batch['text']
+            target_ = example_batch['text']
+        else:
+            input_ = example_batch['input']
+            target_ = example_batch['output']
         source = self.tokenizer.batch_encode_plus([str(input_)], max_length=self.input_length, 
                                                     padding='max_length', truncation=True, return_tensors="pt")
         targets = self.tokenizer.batch_encode_plus([str(target_)], max_length=self.output_length, 
