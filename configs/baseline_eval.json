@@ -1,11 +1,11 @@
 {
-    "input_length" : 25,
-    "output_length" : 4,
+    "input_length" : 50,
+    "output_length" : 10,
     "num_train_epochs" : 1,
     "output_dir" : "outputs/T5_base",
-    "dataset" : "IL",
+    "dataset" : "UL_09",
     "dataset_version" : "small",
-    "train_batch_size" : 8,
+    "train_batch_size" : 32,
     "learning_rate" : 1e-4,
     "model" : "t5-base",
     "method": "baseline",
@@ -22,6 +22,6 @@
     "mode" : "pretrain",
     "use_lr_scheduling" : true,
     "check_validation" : true,
-    "checkpoint_path" : "",
-    "output_log": "log/Il.csv"
+    "checkpoint_path" : "outputs/t5_base_09_epoch0.ckpt",
+    "output_log": "log/UL_09.csv"
 }

@@ -38,21 +38,18 @@ class CustomDataset(Dataset):
                 self.dataset = pd.read_csv('data/IL_template.csv')
             elif self.args.dataset=='IL_notemplate':
                 self.dataset = pd.read_csv('data/IL_notemplate.csv')
-            elif self.args.dataset=='recent_news':
-                df1 = pd.read_csv('data/ckl_data/invariantLAMA.csv')
-                #df2 = pd.read_csv('data/ckl_data/UL_ready.csv')
-                df2 = pd.read_csv('data/ckl_data/NLE_ready.csv')
-                self.dataset = pd.concat([df1,df2])
-                #df3 = pd.read_csv('data/ckl_data/NL_ready.csv')
-                #df1 = pd.concat([df1, df2])
-                #self.dataset = pd.concat([df1, df3])
-                print(f'length of validataion dataset: {len(self.dataset)}')
             elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809':
                 df1 = pd.read_csv('data/UnL_0809.csv')
                 df2 = pd.read_csv('data/UpL_0809.csv')
                 df3 = pd.read_csv('data/NL_0809.csv')
                 df1 = pd.concat([df1, df2])
                 self.dataset = pd.concat([df1, df3])
+            elif self.args.dataset=='UnC_09':
+                self.dataset = pd.read_csv('data/UnL_0809.csv')
+            elif self.args.dataset=='NL_09':
+                self.dataset = pd.read_csv('data/NL_0809.csv')
+            elif self.args.dataset=='UL_09':
+                self.dataset = pd.read_csv('data/UpL_0809.csv')
             else:
                 self.dataset = pd.read_csv('data/IL.csv')
         
