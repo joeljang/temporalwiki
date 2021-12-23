@@ -39,7 +39,7 @@ class CustomDataset(Dataset):
                 self.dataset = pd.read_csv('data/IL_template.csv')
             elif self.args.dataset=='IL_notemplate':
                 self.dataset = pd.read_csv('data/IL_notemplate.csv')
-            elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809' or self.args.dataset=='data/20210901_gpt2':
+            elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809' or self.args.dataset=='data/wikipedia_09_gpt2':
                 df1 = pd.read_csv('data/UnL_0809.csv')
                 df2 = pd.read_csv('data/UpL_0809.csv')
                 df3 = pd.read_csv('data/NL_0809.csv')
@@ -63,7 +63,7 @@ class CustomDataset(Dataset):
 
     def convert_to_features(self, example_batch, index=None):
         # continual pretraining
-        if 'gpt2' in self.args.model_name_or_path:
+        if self.type_path=='validation' and ('gpt2' in self.args.model_name_or_path):
             s = example_batch['subject']
             r = example_batch['relation']
             o = example_batch['objective']

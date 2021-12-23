@@ -45,6 +45,9 @@ class GPT2(pl.LightningModule):
             for l in lst:
                 self.dataset_lst.append(self.hparams.dataset+'/'+l)
             self.dataset_index = 0
+        self.global_epoch=0
+        self.log('global_epoch', self.global_epoch, prog_bar=True, logger=True)
+
         
     def normalize_answer(self, s):
         """Lower text and remove punctuation, articles and extra whitespace."""
@@ -128,17 +131,9 @@ class GPT2(pl.LightningModule):
     
      
     def _generative_step(self, batch, batch_idx):
-        lm_labels = batch["target_ids"]
-        lm_labels[lm_labels[:, :] == self.tokenizer.pad_token_id] = -100
-        outputs = self(
-            input_ids=batch["source_ids"],
-            attention_mask=batch["source_mask"],
-            lm_labels=lm_labels,
-        )
-
-        loss = outputs[0]
+        loss = self._step(batch)
         ppl = math.exp(loss)
-        if self.args.dataset=='data/20210901_gpt2':
+        if self.hparams.dataset=='data/wikipedia_09_gpt2':
             if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
                 self.log('UnL_ppl', ppl, prog_bar=True, logger=True)
             elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
