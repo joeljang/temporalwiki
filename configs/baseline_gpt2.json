@@ -3,7 +3,7 @@
     "output_length" : 512,
     "num_train_epochs" : 4,
     "num_files" : 2,
-    "output_dir" : "outputs/GPT2_large_1e-4_full",
+    "output_dir" : "outputs/GPT2_large_1e-4",
     "dataset" : "data/wikipedia_09_gpt2",
     "dataset_version" : "full",
     "len_data" : 4000000,
