@@ -24,10 +24,16 @@ class CustomDataset(Dataset):
                     self.dataset = pd.read_csv('data/wikipedia_08.csv')
                 elif self.args.dataset=='wikipedia_0809':
                     self.dataset = pd.read_csv('data/wikipedia_0809_subset.csv')
+                elif self.args.dataset=='wikipedia_0809_gpt2':
+                    self.dataset = pd.read_csv('data/wikipedia_0809_gpt2.csv')
                 elif self.args.dataset=='wikipedia_0910':
                     self.dataset = pd.read_csv('data/wikipedia_0910_subset.csv')
+                elif self.args.dataset=='wikipedia_0910_gpt2':
+                    self.dataset = pd.read_csv('data/wikipedia_0910_gpt2.csv')
                 elif self.args.dataset=='wikipedia_1011':
                     self.dataset = pd.read_csv('data/wikipedia_1011_subset.csv')
+                elif self.args.dataset=='wikipedia_1011_gpt2':
+                    self.dataset = pd.read_csv('data/wikipedia_1011_gpt2.csv')
                 elif self.args.dataset=='recent_news':
                     self.dataset = pd.read_csv('data/recent_news_small.csv')
                 else:
@@ -39,12 +45,14 @@ class CustomDataset(Dataset):
                 self.dataset = pd.read_csv('data/IL_template.csv')
             elif self.args.dataset=='IL_notemplate':
                 self.dataset = pd.read_csv('data/IL_notemplate.csv')
-            elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809' or self.args.dataset=='data/wikipedia_09_gpt2':
-                df1 = pd.read_csv('data/UnL_0809.csv')
-                df2 = pd.read_csv('data/UpL_0809.csv')
-                df3 = pd.read_csv('data/NL_0809.csv')
+            elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809' or self.args.dataset=='data/wikipedia_09_gpt2' or self.args.dataset=='wikipedia_0809_gpt2':
+                df1 = pd.read_csv('data/evaluation/0801-0901_unchanged.csv')
+                df2 = pd.read_csv('data/evaluation/0801-0901_updated.csv')
+                df3 = pd.read_csv('data/evaluation/0801-0901_new.csv')
+                df4 = pd.read_csv('data/evaluation/IL.csv')
                 df1 = pd.concat([df1, df2])
-                self.dataset = pd.concat([df1, df3])
+                df1 = pd.concat([df1, df3])
+                self.dataset = pd.concat([df1, df4])
             elif self.args.dataset=='UnC_09':
                 self.dataset = pd.read_csv('data/UnL_0809.csv')
             elif self.args.dataset=='NL_09':

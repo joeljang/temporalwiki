@@ -4,7 +4,7 @@
     "num_train_epochs" : 4,
     "num_files" : 2,
     "output_dir" : "outputs/GPT2_large_1e-4_full",
-    "dataset" : "data/wikipedia_09_gpt2",
+    "dataset" : "wikipedia_0809_gpt2",
     "dataset_version" : "full",
     "len_data" : 4000000,
     "train_batch_size" : 8,
@@ -21,7 +21,7 @@
     "wandb_log": true,
     "wandb_project": "ever_changing",
     "wandb_run_name" : "GPT2_large_1e-4_full",
-    "mode" : "pretrain_brute",
+    "mode" : "pretrain",
     "use_lr_scheduling" : true,
     "check_validation" : false,
     "checkpoint_path" : ""

@@ -133,13 +133,15 @@ class GPT2(pl.LightningModule):
     def _generative_step(self, batch, batch_idx):
         loss = self._step(batch)
         ppl = math.exp(loss)
-        if self.hparams.dataset=='data/wikipedia_09_gpt2':
+        if self.hparams.dataset=='data/wikipedia_09_gpt2' or 'wikipedia_0809_gpt2':
             if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
                 self.log('UnL_ppl', ppl, prog_bar=True, logger=True)
             elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
                 self.log('UL_ppl', ppl, prog_bar=True, logger=True)
-            else:
+            elif (batch_idx < (40000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
                 self.log('NL_ppl', ppl, prog_bar=True, logger=True)
+            else:
+                self.log('IL_ppl', ppl, prog_bar=True, logger=True)
         else:
             raise Exception('not supporting gpt2 for given dataset')
         
