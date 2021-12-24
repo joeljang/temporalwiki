@@ -87,8 +87,13 @@ class GPT2(pl.LightningModule):
         return em_score*100
 
     def get_dataset(self, tokenizer, type_path, args, length=None):
-        dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
+        if type_path=='validation':
+            dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=50, 
+                        output_length=50, args=args, length=length)
+        else:
+            dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
                         output_length=args.max_output_length, args=args, length=length)
+        return dataset
         return dataset
 
     def freeze_params(self, model):
