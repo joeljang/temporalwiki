@@ -6,7 +6,6 @@
     "output_dir" : "outputs/GPT2_large_1e-4_full",
     "dataset" : "wikipedia_0809_gpt2",
     "dataset_version" : "full",
-    "len_data" : 4000000,
     "train_batch_size" : 8,
     "learning_rate" : 1e-4,
     "model" : "gpt2-large",

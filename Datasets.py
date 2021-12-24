@@ -82,6 +82,9 @@ class CustomDataset(Dataset):
             r = example_batch['relation']
             input_ = s + ' ' + r + ' <extra_id_0> .' 
             target_ = example_batch['objective']
+        elif 'gpt2' in self.args.model_name_or_path:
+            input_ = example_batch['text']
+            target_ = example_batch['text']
         else:
             input_ = example_batch['input']
             target_ = example_batch['output']
