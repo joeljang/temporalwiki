@@ -138,7 +138,7 @@ class GPT2(pl.LightningModule):
     def _generative_step(self, batch, batch_idx):
         loss = self._step(batch)
         ppl = math.exp(loss)
-        if self.hparams.dataset=='data/wikipedia_09_gpt2' or 'wikipedia_0809_gpt2':
+        if self.hparams.dataset=='data/wikipedia_09_gpt2' or 'wikipedia_0809_gpt2' or 'data/wikipedia_10_gpt2':
             if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
                 self.log('UnL_ppl', ppl, prog_bar=True, logger=True)
             elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
@@ -195,9 +195,9 @@ class GPT2(pl.LightningModule):
 
             steps_per_epoch = ( len_data // denomniator ) + 1
             if self.hparams.mode=='pretrain_brute':
-                total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 4
+                total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 16
             else:
-                total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 2
+                total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 8
             print(f'total number of steps : {total_num_steps}')
             scheduler = WarmupDecayLR(optimizer, total_num_steps = total_num_steps ,warmup_max_lr = self.hparams.learning_rate, warmup_num_steps = int(total_num_steps * 0.1))
             return [optimizer], [{"scheduler": scheduler, "interval": "step", "name": "learning rate"}]

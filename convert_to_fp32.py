@@ -2,12 +2,8 @@ from pytorch_lightning.utilities.deepspeed import convert_zero_checkpoint_to_fp3
 import os
 # lightning deepspeed has saved a directory instead of a file
 
-#checkpoint_dir = 'outputs/T5_base_0809_lr1e-4'
-#checkpoint_dir = 'outputs/T5_base_0809_lr3e-5'
-checkpoint_dir = 'outputs/T5_base_0809_lr1e-5'
-#output_path = 'outputs/T5_base_0809_1e-4/'
-#output_path = 'outputs/T5_base_0809_3e-5/'
-output_path = 'outputs/T5_base_0809_1e-5/'
+checkpoint_dir = 'outputs/GPT2_large_1e-4'
+output_path = 'outputs/GPT2_large_1e-4_/'
 
 if not os.path.isdir(output_path):
     os.mkdir(output_path)

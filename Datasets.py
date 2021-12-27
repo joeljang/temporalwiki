@@ -53,6 +53,14 @@ class CustomDataset(Dataset):
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
                 self.dataset = pd.concat([df1, df4])
+            elif self.args.dataset=='data/wikipedia_10_gpt2':
+                df1 = pd.read_csv('data/evaluation/0901-1001_unchanged.csv')
+                df2 = pd.read_csv('data/evaluation/0901-1001_updated.csv')
+                df3 = pd.read_csv('data/evaluation/0901-1001_new.csv')
+                df4 = pd.read_csv('data/evaluation/IL.csv')
+                df1 = pd.concat([df1, df2])
+                df1 = pd.concat([df1, df3])
+                self.dataset = pd.concat([df1, df4])
             elif self.args.dataset=='UnC_09':
                 self.dataset = pd.read_csv('data/UnL_0809.csv')
             elif self.args.dataset=='NL_09':
