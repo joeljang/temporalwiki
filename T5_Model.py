@@ -167,7 +167,7 @@ class T5(pl.LightningModule):
             
         loss = self._step(batch)
 
-        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('val_loss', loss, prog_bar=True, logger=True)
 
         em_score = 0
         accuracy = 0
@@ -190,8 +190,8 @@ class T5(pl.LightningModule):
                 self.log('NL_em_score', em_score, prog_bar=True, logger=True)
                 self.log('NL_f1_score', f1_score, prog_bar=True, logger=True)
         else:
-            self.log('em_score', em_score, prog_bar=True, logger=True)
-            self.log('f1_score', f1_score, prog_bar=True, logger=True)
+            self.log('IL_em_score', em_score, prog_bar=True, logger=True)
+            self.log('IL_f1_score', f1_score, prog_bar=True, logger=True)
 
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
@@ -228,7 +228,10 @@ class T5(pl.LightningModule):
             denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps)
 
             steps_per_epoch = ( len_data // denomniator ) + 1
-            total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 2
+            if self.hparams.mode=='pretrain_brute':
+                total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 16
+            else:
+                total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 8
             print(f'total number of steps : {total_num_steps}')
             scheduler = WarmupDecayLR(optimizer, total_num_steps = total_num_steps ,warmup_max_lr = self.hparams.learning_rate, warmup_num_steps = int(total_num_steps * 0.1))
             return [optimizer], [{"scheduler": scheduler, "interval": "step", "name": "learning rate"}]

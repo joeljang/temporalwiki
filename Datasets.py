@@ -68,7 +68,7 @@ class CustomDataset(Dataset):
             elif self.args.dataset=='UL_09':
                 self.dataset = pd.read_csv('data/UpL_0809.csv')
             else:
-                self.dataset = pd.read_csv('data/IL.csv')
+                self.dataset = pd.read_csv('data/evaluation/IL.csv')
         
         print(f'Length of dataset retrieving is.. {len(self.dataset)}')
         self.input_length = input_length
@@ -85,7 +85,7 @@ class CustomDataset(Dataset):
             o = example_batch['objective']
             input_ = s + ' ' + r + ' ' + o 
             target_ = s + ' ' + r + ' ' + o 
-        elif self.type_path=='validation' and (self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809'):
+        elif self.type_path=='validation' and (self.args.dataset=='data/wikipedia_08' or self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809'):
             s = example_batch['subject']
             r = example_batch['relation']
             input_ = s + ' ' + r + ' <extra_id_0> .' 
