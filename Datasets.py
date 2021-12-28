@@ -17,35 +17,22 @@ class CustomDataset(Dataset):
 
         # dataset for continual training
         if self.type_path=='train':
-            if self.dataset_version=='small':
-                self.dataset = pd.read_csv('data/recent_news_small.csv')
+            if self.args.dataset=='wikipedia_0809':
+                self.dataset = pd.read_csv('data/wikipedia_0809_subset.csv')
+            elif self.args.dataset=='wikipedia_0809_gpt2':
+                self.dataset = pd.read_csv('data/wikipedia_0809_gpt2.csv')
+            elif self.args.dataset=='wikipedia_0910':
+                self.dataset = pd.read_csv('data/wikipedia_0910_subset.csv')
+            elif self.args.dataset=='wikipedia_0910_gpt2':
+                self.dataset = pd.read_csv('data/wikipedia_0910_gpt2.csv')
+            elif self.args.dataset=='wikipedia_1011':
+                self.dataset = pd.read_csv('data/wikipedia_1011_subset.csv')
+            elif self.args.dataset=='wikipedia_1011_gpt2':
+                self.dataset = pd.read_csv('data/wikipedia_1011_gpt2.csv')
             else:
-                if self.args.dataset=='wikipedia_08':
-                    self.dataset = pd.read_csv('data/wikipedia_08.csv')
-                elif self.args.dataset=='wikipedia_0809':
-                    self.dataset = pd.read_csv('data/wikipedia_0809_subset.csv')
-                elif self.args.dataset=='wikipedia_0809_gpt2':
-                    self.dataset = pd.read_csv('data/wikipedia_0809_gpt2.csv')
-                elif self.args.dataset=='wikipedia_0910':
-                    self.dataset = pd.read_csv('data/wikipedia_0910_subset.csv')
-                elif self.args.dataset=='wikipedia_0910_gpt2':
-                    self.dataset = pd.read_csv('data/wikipedia_0910_gpt2.csv')
-                elif self.args.dataset=='wikipedia_1011':
-                    self.dataset = pd.read_csv('data/wikipedia_1011_subset.csv')
-                elif self.args.dataset=='wikipedia_1011_gpt2':
-                    self.dataset = pd.read_csv('data/wikipedia_1011_gpt2.csv')
-                elif self.args.dataset=='recent_news':
-                    self.dataset = pd.read_csv('data/recent_news_small.csv')
-                else:
-                    raise Exception('The given dataset does not exist in data directory.')
+                raise Exception('The given dataset does not exist in data directory.')
         else:
-            if self.args.dataset=='IL':
-                self.dataset = pd.read_csv('data/IL.csv')
-            elif self.args.dataset=='IL_template':
-                self.dataset = pd.read_csv('data/IL_template.csv')
-            elif self.args.dataset=='IL_notemplate':
-                self.dataset = pd.read_csv('data/IL_notemplate.csv')
-            elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809' or self.args.dataset=='data/wikipedia_09_gpt2' or self.args.dataset=='wikipedia_0809_gpt2':
+            if self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809' or self.args.dataset=='data/wikipedia_09_gpt2' or self.args.dataset=='wikipedia_0809_gpt2':
                 df1 = pd.read_csv('data/evaluation/0801-0901_unchanged.csv')
                 df2 = pd.read_csv('data/evaluation/0801-0901_updated.csv')
                 df3 = pd.read_csv('data/evaluation/0801-0901_new.csv')
@@ -53,7 +40,7 @@ class CustomDataset(Dataset):
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
                 self.dataset = pd.concat([df1, df4])
-            elif self.args.dataset=='data/wikipedia_10_gpt2' or self.args.dataset=='wikipedia_0910_gpt2':
+            elif self.args.dataset=='data/wikipedia_10_gpt2' or self.args.dataset=='data/wikipedia_10' or self.args.dataset=='data/wikipedia_0910' or self.args.dataset=='wikipedia_0910_gpt2':
                 df1 = pd.read_csv('data/evaluation/0901-1001_unchanged.csv')
                 df2 = pd.read_csv('data/evaluation/0901-1001_updated.csv')
                 df3 = pd.read_csv('data/evaluation/0901-1001_new.csv')
@@ -61,12 +48,14 @@ class CustomDataset(Dataset):
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
                 self.dataset = pd.concat([df1, df4])
-            elif self.args.dataset=='UnC_09':
-                self.dataset = pd.read_csv('data/UnL_0809.csv')
-            elif self.args.dataset=='NL_09':
-                self.dataset = pd.read_csv('data/NL_0809.csv')
-            elif self.args.dataset=='UL_09':
-                self.dataset = pd.read_csv('data/UpL_0809.csv')
+            elif self.args.dataset=='data/wikipedia_11_gpt2' or self.args.dataset=='data/wikipedia_11' or self.args.dataset=='data/wikipedia_1011' or self.args.dataset=='wikipedia_1011_gpt2':
+                df1 = pd.read_csv('data/evaluation/1001-1101_unchanged.csv')
+                df2 = pd.read_csv('data/evaluation/1001-1101_updated.csv')
+                df3 = pd.read_csv('data/evaluation/1001-1101_new.csv')
+                df4 = pd.read_csv('data/evaluation/IL.csv')
+                df1 = pd.concat([df1, df2])
+                df1 = pd.concat([df1, df3])
+                self.dataset = pd.concat([df1, df4])
             else:
                 self.dataset = pd.read_csv('data/evaluation/IL.csv')
         
@@ -85,7 +74,7 @@ class CustomDataset(Dataset):
             o = example_batch['objective']
             input_ = s + ' ' + r + ' ' + o 
             target_ = s + ' ' + r + ' ' + o 
-        elif self.type_path=='validation' and (self.args.dataset=='data/wikipedia_08' or self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809'):
+        elif self.type_path=='validation' and ('t5' in self.args.model_name_or_path):
             s = example_batch['subject']
             r = example_batch['relation']
             input_ = s + ' ' + r + ' <extra_id_0> .' 
