@@ -94,7 +94,6 @@ class GPT2(pl.LightningModule):
             dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
                         output_length=args.max_output_length, args=args, length=length)
         return dataset
-        return dataset
 
     def freeze_params(self, model):
         for par in model.parameters():
@@ -137,17 +136,14 @@ class GPT2(pl.LightningModule):
      
     def _generative_step(self, batch, batch_idx):
         loss = self._step(batch)
-        if self.hparams.dataset=='data/wikipedia_09_gpt2' or self.hparams.dataset=='wikipedia_0809_gpt2' or self.hparams.dataset=='data/wikipedia_10_gpt2':
-            if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('UnL_loss', loss, prog_bar=True, logger=True)
-            elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('UL_loss', loss, prog_bar=True, logger=True)
-            elif (batch_idx < (40000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('NL_loss', loss, prog_bar=True, logger=True)
-            else:
-                self.log('IL_loss', loss, prog_bar=True, logger=True)
+        if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('UnL_loss', loss, prog_bar=True, logger=True)
+        elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('UL_loss', loss, prog_bar=True, logger=True)
+        elif (batch_idx < (40000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('NL_loss', loss, prog_bar=True, logger=True)
         else:
-            raise Exception('not supporting gpt2 for given dataset')
+            self.log('IL_loss', loss, prog_bar=True, logger=True)
         
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
@@ -193,10 +189,9 @@ class GPT2(pl.LightningModule):
             denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps)
 
             steps_per_epoch = ( len_data // denomniator ) + 1
-            if self.hparams.mode=='pretrain_brute':
-                total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 16
-            else:
-                total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 8
+            schedule_scale_factor = 8
+            total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * self.hparams.num_files * schedule_scale_factor
+
             print(f'total number of steps : {total_num_steps}')
             scheduler = WarmupDecayLR(optimizer, total_num_steps = total_num_steps ,warmup_max_lr = self.hparams.learning_rate, warmup_num_steps = int(total_num_steps * 0.1))
             return [optimizer], [{"scheduler": scheduler, "interval": "step", "name": "learning rate"}]

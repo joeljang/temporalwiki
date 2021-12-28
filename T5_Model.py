@@ -167,8 +167,6 @@ class T5(pl.LightningModule):
             
         loss = self._step(batch)
 
-        #self.log('val_loss', loss, prog_bar=True, logger=True)
-
         em_score = 0
         accuracy = 0
         f1_score = 0
@@ -179,18 +177,15 @@ class T5(pl.LightningModule):
         em_score = torch.tensor(em_score,dtype=torch.float32)
         accuracy = torch.tensor(accuracy,dtype=torch.float32)
         f1_score = torch.tensor(f1_score, dtype=torch.float32)
-        if self.hparams.dataset=='data/wikipedia_09' or self.hparams.dataset=='wikipedia_0809':
-            if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('UnL_loss', loss, prog_bar=True, logger=True)
-            elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('UL_loss', loss, prog_bar=True, logger=True)
-            elif (batch_idx < (40000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('NL_loss', loss, prog_bar=True, logger=True)
-            else:
-                self.log('IL_loss', loss, prog_bar=True, logger=True)
+
+        if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('UnL_loss', loss, prog_bar=True, logger=True)
+        elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('UL_loss', loss, prog_bar=True, logger=True)
+        elif (batch_idx < (40000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('NL_loss', loss, prog_bar=True, logger=True)
         else:
-            self.log('IL_em_score', em_score, prog_bar=True, logger=True)
-            self.log('IL_f1_score', f1_score, prog_bar=True, logger=True)
+            self.log('IL_loss', loss, prog_bar=True, logger=True)
 
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
@@ -227,10 +222,9 @@ class T5(pl.LightningModule):
             denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps)
 
             steps_per_epoch = ( len_data // denomniator ) + 1
-            if self.hparams.mode=='pretrain_brute':
-                total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 16
-            else:
-                total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 8
+            schedule_scale_factor = 8
+            total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * self.hparams.num_files * schedule_scale_factor
+
             print(f'total number of steps : {total_num_steps}')
             scheduler = WarmupDecayLR(optimizer, total_num_steps = total_num_steps ,warmup_max_lr = self.hparams.learning_rate, warmup_num_steps = int(total_num_steps * 0.1))
             return [optimizer], [{"scheduler": scheduler, "interval": "step", "name": "learning rate"}]
