@@ -40,7 +40,7 @@ class CustomDataset(Dataset):
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
                 self.dataset = pd.concat([df1, df4])
-            elif self.args.dataset=='data/wikipedia_10_gpt2' or self.args.dataset=='data/wikipedia_10' or self.args.dataset=='data/wikipedia_0910' or self.args.dataset=='wikipedia_0910_gpt2':
+            elif self.args.dataset=='data/wikipedia_10_gpt2' or self.args.dataset=='data/wikipedia_10' or self.args.dataset=='wikipedia_0910' or self.args.dataset=='wikipedia_0910_gpt2':
                 df1 = pd.read_csv('data/evaluation/0901-1001_unchanged.csv')
                 df2 = pd.read_csv('data/evaluation/0901-1001_updated.csv')
                 df3 = pd.read_csv('data/evaluation/0901-1001_new.csv')
@@ -48,7 +48,7 @@ class CustomDataset(Dataset):
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
                 self.dataset = pd.concat([df1, df4])
-            elif self.args.dataset=='data/wikipedia_11_gpt2' or self.args.dataset=='data/wikipedia_11' or self.args.dataset=='data/wikipedia_1011' or self.args.dataset=='wikipedia_1011_gpt2':
+            elif self.args.dataset=='data/wikipedia_11_gpt2' or self.args.dataset=='data/wikipedia_11' or self.args.dataset=='wikipedia_1011' or self.args.dataset=='wikipedia_1011_gpt2':
                 df1 = pd.read_csv('data/evaluation/1001-1101_unchanged.csv')
                 df2 = pd.read_csv('data/evaluation/1001-1101_updated.csv')
                 df3 = pd.read_csv('data/evaluation/1001-1101_new.csv')
