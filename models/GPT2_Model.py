@@ -26,14 +26,14 @@ class GPT2(pl.LightningModule):
         self.save_hyperparameters(hparams)      
         if hparams.method=='baseline':
             self.model = GPT2LMHeadModel.from_pretrained(hparams.model_name_or_path)
-        elif hparams.method=='kadapters':
+        elif hparams.method=='kadapter':
             self.model = GPT2_Kadapter.from_pretrained(hparams.model_name_or_path)
             self.freeze_params(self.model) 
             for name, param in self.model.named_parameters():
                 if 'kadapter' in name or 'lm_head' in name:
                     param.requires_grad = True
         else:
-            raise Exception('Currently not supporting {hparams.method}')
+            raise Exception(f'Currently not supporting {hparams.method}')
         self.tokenizer = GPT2Tokenizer.from_pretrained(hparams.model_name_or_path)
         self.tokenizer.add_special_tokens({
             "eos_token": "</s>",
