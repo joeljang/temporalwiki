@@ -167,7 +167,7 @@ class T5(pl.LightningModule):
             
         loss = self._step(batch)
 
-        self.log('val_loss', loss, prog_bar=True, logger=True)
+        #self.log('val_loss', loss, prog_bar=True, logger=True)
 
         em_score = 0
         accuracy = 0
@@ -181,14 +181,13 @@ class T5(pl.LightningModule):
         f1_score = torch.tensor(f1_score, dtype=torch.float32)
         if self.hparams.dataset=='data/wikipedia_09' or self.hparams.dataset=='wikipedia_0809':
             if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('UnL_em_score', em_score, prog_bar=True, logger=True)
-                self.log('UnL_f1_score', f1_score, prog_bar=True, logger=True)
+                self.log('UnL_loss', loss, prog_bar=True, logger=True)
             elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('UL_em_score', em_score, prog_bar=True, logger=True)
-                self.log('UL_f1_score', f1_score, prog_bar=True, logger=True)
+                self.log('UL_loss', loss, prog_bar=True, logger=True)
+            elif (batch_idx < (40000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+                self.log('NL_loss', loss, prog_bar=True, logger=True)
             else:
-                self.log('NL_em_score', em_score, prog_bar=True, logger=True)
-                self.log('NL_f1_score', f1_score, prog_bar=True, logger=True)
+                self.log('IL_loss', loss, prog_bar=True, logger=True)
         else:
             self.log('IL_em_score', em_score, prog_bar=True, logger=True)
             self.log('IL_f1_score', f1_score, prog_bar=True, logger=True)
