@@ -1,32 +1,52 @@
 import pytorch_lightning as pl
-import torch.nn.functional as F
+
 from transformers import (
     Adafactor,
-    T5Tokenizer,
-    T5ForConditionalGeneration,
+    GPT2LMHeadModel,
+    GPT2Tokenizer,
 )
+
 import torch
 from Datasets import CustomDataset, Pretrain_Chunks
-from torch.utils.data import RandomSampler, SequentialSampler
+from torch.utils.data import RandomSampler
 from torch.utils.data import DataLoader, ConcatDataset
-from rouge import Rouge
-from collections import Counter
 
 import re
 import string
-import copy
-import os
-import random
-
 from deepspeed.runtime.lr_schedules import WarmupDecayLR
 import deepspeed
+import math
+import os
 
-class T5(pl.LightningModule):
+from models.GPT2_Model_CL import GPT2LMHeadModel as GPT2_Kadapter
+
+class GPT2(pl.LightningModule):
     def __init__(self, hparams):
-        super(T5, self).__init__()
-        self.save_hyperparameters(hparams)
-        self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
-        self.tokenizer = T5Tokenizer.from_pretrained(hparams.tokenizer_name_or_path)
+        super(GPT2, self).__init__()
+        self.save_hyperparameters(hparams)      
+        if hparams.method=='baseline':
+            self.model = GPT2LMHeadModel.from_pretrained(hparams.model_name_or_path)
+        elif hparams.method=='kadapters':
+            self.model = GPT2_Kadapter.from_pretrained(hparams.model_name_or_path)
+            self.freeze_params(self.model) 
+            for name, param in self.model.named_parameters():
+                if 'kadapter' in name or 'lm_head' in name:
+                    param.requires_grad = True
+        else:
+            raise Exception('Currently not supporting {hparams.method}')
+        self.tokenizer = GPT2Tokenizer.from_pretrained(hparams.model_name_or_path)
+        self.tokenizer.add_special_tokens({
+            "eos_token": "</s>",
+            "bos_token": "<s>",
+            "unk_token": "<unk>",
+            "pad_token": "<pad>",
+            "mask_token": "<mask>"
+            })
+
+
+        self.model.resize_token_embeddings(len(self.tokenizer))
+        self.tokenizer.padding_side = "left"
+
         self.output_dir = self.hparams.output_dir
         if self.hparams.mode=='pretrain_brute':
             self.dataset_lst = []
@@ -38,6 +58,10 @@ class T5(pl.LightningModule):
         self.global_epoch=0
         self.log('global_epoch', self.global_epoch, prog_bar=True, logger=True)
 
+    def freeze_params(self, model):
+        for par in model.parameters():
+            par.requires_grad = False
+        
     def normalize_answer(self, s):
         """Lower text and remove punctuation, articles and extra whitespace."""
 
@@ -57,59 +81,37 @@ class T5(pl.LightningModule):
         def rid_of_specials(text):
             text = text.replace("<extra_id_0>", "")
             text = text.replace("<extra_id_1>", "")
-            text = text.replace("<extra_id_2>", "")
-            text = text.replace("<extra_id_3>", "")
             return text
 
         return rid_of_specials(white_space_fix(remove_articles(remove_punc(lower(s)))))
 
     def exact_match_score(self, prediction, ground_truth):
         return int(self.normalize_answer(prediction) == self.normalize_answer(ground_truth))
-    
-    def accuracy_match_score(self, prediction, ground_truth):
-        return int(prediction.strip() == ground_truth.strip())
-
-    def _f1_score(self, prediction, ground_truth):
-        prediction_tokens = self.normalize_answer(prediction).split()
-        ground_truth_tokens = self.normalize_answer(ground_truth).split()
-        common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
-        num_same = sum(common.values())
-        if num_same == 0:
-            return 0
-        precision = 1.0 * num_same / len(prediction_tokens)
-        recall = 1.0 * num_same / len(ground_truth_tokens)
-        f1 = (2 * precision * recall) / (precision + recall)
-        return f1
 
     def calculate_scores(self, predictions, ground_truths):
         em_score = 0
-        accuracy = 0
         
         for i in range(len(predictions)):
             ground_truth = ground_truths[i]
             prediction = predictions[i]
             em_score +=  self.exact_match_score(prediction, ground_truth)
-            accuracy += self.accuracy_match_score(prediction, ground_truth)
         
         em_score /= len(predictions)
-        accuracy /= len(predictions)
-        return em_score*100, accuracy*100
-
-    def calculate_f1_scores(self, predictions, ground_truths):
-        f1_score = 0 
-        for i in range(len(predictions)):
-            ground_truth = ground_truths[i]
-            prediction = predictions[i]
-            f1_score += self._f1_score(prediction, ground_truth)
-
-        f1_score /= len(predictions)
-        return f1_score*100
+        return em_score*100
 
     def get_dataset(self, tokenizer, type_path, args, length=None):
-        dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
+        if type_path=='validation':
+            dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=50, 
+                        output_length=50, args=args, length=length)
+        else:
+            dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
                         output_length=args.max_output_length, args=args, length=length)
         return dataset
-             
+
+    def freeze_params(self, model):
+        for par in model.parameters():
+            par.requires_grad = False
+    
     def lmap(self, f, x):
         """list(map(f, x))"""
         return list(map(f, x))
@@ -122,8 +124,6 @@ class T5(pl.LightningModule):
         return self.model(
             input_ids,
             attention_mask=attention_mask,
-            decoder_input_ids=decoder_input_ids,
-            decoder_attention_mask=decoder_attention_mask,
             labels=lm_labels,
     )
 
@@ -134,7 +134,6 @@ class T5(pl.LightningModule):
             input_ids=batch["source_ids"],
             attention_mask=batch["source_mask"],
             lm_labels=lm_labels,
-            decoder_attention_mask=batch['target_mask']
         )
 
         loss = outputs[0]
@@ -148,36 +147,8 @@ class T5(pl.LightningModule):
         return self.lmap(str.strip, gen_text)
     
      
-    def _generative_step(self, batch, batch_idx):     
-        generated_ids = self.model.generate(
-            batch["source_ids"],
-            attention_mask=batch["source_mask"],
-            use_cache=True,
-            decoder_attention_mask=batch['target_mask'],
-            max_length=10,
-            num_beams=2,
-            early_stopping=True
-        )
-        
-        preds = self.ids_to_clean_text(generated_ids)
-        targets = self.ids_to_clean_text(batch["target_ids"])
-        source = self.ids_to_clean_text(batch["source_ids"])
-        print("preds", preds)
-        print("targets", targets)
-            
+    def _generative_step(self, batch, batch_idx):
         loss = self._step(batch)
-
-        em_score = 0
-        accuracy = 0
-        f1_score = 0
-
-        em_score, accuracy = self.calculate_scores(preds, targets)
-        f1_score = self.calculate_f1_scores(preds, targets)
-
-        em_score = torch.tensor(em_score,dtype=torch.float32)
-        accuracy = torch.tensor(accuracy,dtype=torch.float32)
-        f1_score = torch.tensor(f1_score, dtype=torch.float32)
-
         if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
             self.log('UnL_loss', loss, prog_bar=True, logger=True)
         elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
@@ -186,11 +157,20 @@ class T5(pl.LightningModule):
             self.log('NL_loss', loss, prog_bar=True, logger=True)
         else:
             self.log('IL_loss', loss, prog_bar=True, logger=True)
-
+        
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
         self.log("loss", loss)
         return loss
+
+    def on_train_epoch_end(self):
+        if self.hparams.mode=='pretrain_brute':
+            self.dataset_index+=1
+            if self.dataset_index==self.hparams.num_files:
+                self.global_epoch+=1
+                self.log('global_epoch', self.global_epoch, prog_bar=True, logger=True)
+                self.dataset_index=0
+            self.train_dataloader()
 
     def validation_step(self, batch, batch_idx):
         return self._generative_step(batch, batch_idx)
@@ -230,15 +210,6 @@ class T5(pl.LightningModule):
             return [optimizer], [{"scheduler": scheduler, "interval": "step", "name": "learning rate"}]
         else:
             return [optimizer]
-    
-    def on_train_epoch_end(self):
-        if self.hparams.mode=='pretrain_brute':
-            self.dataset_index+=1
-            if self.dataset_index==self.hparams.num_files:
-                self.global_epoch+=1
-                self.log('global_epoch', self.global_epoch, prog_bar=True, logger=True)
-                self.dataset_index=0
-            self.train_dataloader()
 
     def train_dataloader(self): 
         if self.hparams.mode=='pretrain_brute':
@@ -247,7 +218,6 @@ class T5(pl.LightningModule):
             train_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="train", args=self.hparams)
         sampler = RandomSampler(train_dataset)
         dataloader = DataLoader(train_dataset, sampler=sampler,  batch_size=self.hparams.train_batch_size, drop_last=True, num_workers=self.hparams.num_workers)
-        #dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size, num_workers=self.hparams.num_workers)
         return dataloader
 
     def val_dataloader(self):
