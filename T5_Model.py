@@ -167,9 +167,15 @@ class T5(pl.LightningModule):
         source = self.ids_to_clean_text(batch["source_ids"])
         print("preds", preds)
         print("targets", targets)
-            
+        
+        if self.hparams.mode == 'finetune':
+            with open(self.hparams.output_log, 'a', newline='') as writefile: 
+                writer = csv.writer(writefile)
+                for i in range(len(targets)):
+                    writer.writerow([source[i], preds[i], targets[i], self.exact_match_score(preds[i], targets[i])])
+        
         loss = self._step(batch)
-
+        print(loss)
         self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         em_score = 0
@@ -183,10 +189,10 @@ class T5(pl.LightningModule):
         accuracy = torch.tensor(accuracy,dtype=torch.float32)
         f1_score = torch.tensor(f1_score, dtype=torch.float32)
         if self.hparams.dataset=='data/wikipedia_09' or self.hparams.dataset=='wikipedia_0809':
-            if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            if (batch_idx < (10000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
                 self.log('UnL_em_score', em_score, prog_bar=True, logger=True)
                 self.log('UnL_f1_score', f1_score, prog_bar=True, logger=True)
-            elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            elif (batch_idx < (15000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
                 self.log('UL_em_score', em_score, prog_bar=True, logger=True)
                 self.log('UL_f1_score', f1_score, prog_bar=True, logger=True)
             else:

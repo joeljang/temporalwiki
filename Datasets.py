@@ -21,6 +21,8 @@ class CustomDataset(Dataset):
                 self.dataset = pd.read_csv('data/recent_news_small.csv')
             elif self.args.mode == 'finetune':
                 if self.args.dataset == 'data/wikipedia_09_gpt2' or self.args.dataset == 'data/wikipedia_09': 
+                    total_line = 5000
+                    skip = sorted(random.sample(range(1,total_line+1),total_line-256))
                     self.dataset = pd.read_csv('data/evaluation/lighttuning/08010901_lighttuning_5000.csv')
                 elif self.args.dataset == 'data/wikipedia_10_gpt2' or self.args.dataset == 'data/wikipedia_10': 
                     self.dataset = pd.read_csv('data/evaluation/lighttuning/09011001_lighttuning_5000.csv')
@@ -51,7 +53,7 @@ class CustomDataset(Dataset):
                 if self.args.mode == 'evaluate_ppl':
                     self.dataset = pd.read_csv('data/perplexity/'+self.args.dataset+'.csv')
                 else: 
-                    self.dataset = pd.read_csv('data/evaluation/'+ self.args.dataset + '.csv')
+                    self.dataset = pd.read_csv('data/evaluation/aligned/'+ self.args.dataset + '.csv')
             # validation dataset
             elif self.args.dataset=='IL':
                 self.dataset = pd.read_csv('data/evaluation/IL.csv')
@@ -118,11 +120,16 @@ class CustomDataset(Dataset):
                     target_ = o
                     input_ = s + ' ' + r
                     input_nonprompt = o
-        elif self.type_path=='validation' and (self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809'):
-            s = example_batch['subject']
-            r = example_batch['relation']
-            input_ = s + ' ' + r + ' <extra_id_0> .' 
-            target_ = example_batch['objective']
+        elif self.type_path=='validation' and ('t5' in self.args.model_name_or_path):
+            if self.args.mode == 'evaluate_ppl':
+                input_ = example_batch['text']
+                target_ = example_batch['text']
+            else: 
+                s = example_batch['subject']
+                r = example_batch['relation']
+                input_ = r.capitalize() + ' of ' + s + ' is' + ' <extra_id_0> .' 
+                # input_ = s + ' ' + r + ' <extra_id_0> .' 
+                target_ = example_batch['objective']
         elif 'gpt2' in self.args.model_name_or_path:
             if self.args.mode == 'finetune':
                 s = example_batch['subject']
@@ -134,9 +141,18 @@ class CustomDataset(Dataset):
             else: 
                 input_ = example_batch['text']
                 target_ = example_batch['text']
+        elif 't5' in self.args.model_name_or_path:
+            if self.args.mode == 'finetune':
+                s = example_batch['subject']
+                r = example_batch['relation']
+                # input_ = s + ' ' + r + ' <extra_id_0> .'
+                input_ = r.capitalize() + ' of ' + s + ' is' + ' <extra_id_0> .'  
+                target_ = example_batch['objective']
+            else: 
+                input_ = example_batch['text']
+                target_ = example_batch['text']
         else:
-            input_ = example_batch['input']
-            target_ = example_batch['output']
+            raise Exception('Model should either T5 or GPT2.')
         source = self.tokenizer.batch_encode_plus([str(input_)], max_length=self.input_length, 
                                                     padding='max_length', truncation=True, return_tensors="pt")
         targets = self.tokenizer.batch_encode_plus([str(target_)], max_length=self.output_length, 

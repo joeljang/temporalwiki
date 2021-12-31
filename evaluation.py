@@ -60,8 +60,10 @@ def evaluate(args, Model):
                     early_stopping=True,
                 )
                 dec = model.ids_to_clean_text(outs)
-                texts = [tokenizer.decode(ids) for ids in batch['source_ids']]
+                texts = [tokenizer.decode(ids, clean_up_tokenization_spaces=False) for ids in batch['source_ids']]
                 targets = model.ids_to_clean_text(batch['target_ids'])
+                print("preds",dec)
+                print("targets",targets)
             elif 'gpt2' in args.model_name_or_path:
                 outs = model.model.generate(
                     batch["source_ids"].cuda(),
@@ -94,9 +96,11 @@ def evaluate(args, Model):
 
                 em = model.exact_match_score(predicted, ground_truth)  
                 f1_score += model._f1_score(predicted, ground_truth)
-                writer.writerow([lines, ground_truth, predicted])
                 if em == 1:
+                    writer.writerow([lines, ground_truth, predicted, "CORRECT"])
                     em_correct_num+=1
+                else: 
+                    writer.writerow([lines, ground_truth, predicted, "WRONG"])
                 
     print(f'Number of total validation data: {total_cnt}')
     with open(args.output_log, 'a', newline='') as writefile:  

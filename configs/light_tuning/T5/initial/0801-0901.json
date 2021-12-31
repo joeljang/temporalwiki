@@ -1,0 +1,22 @@
+{
+    "input_length" : 25,
+    "output_length" : 10,
+    "num_train_epochs" : 1,
+    "dataset" : "data/wikipedia_09",
+    "dataset_version" : "full",
+    "train_batch_size" : 32,
+    "learning_rate" : 1e-3,
+    "model" : "google/t5-large-ssm",
+    "method": "baseline",
+    "gradient_accumulation_steps" : 1,
+    "ngpu" : 1,
+    "num_workers" : 40,
+    "CUDA_VISIBLE_DEVICES" : "7",
+    "check_validation" : false,
+    "wandb_log": true,
+    "wandb_project": "ever_changing_lighttune",
+    "wandb_run_name" : "T5_large_09_initial_light_1e-3_prompt_500",
+    "mode" : "finetune",
+    "checkpoint_path" : "model_checkpoints/08/T5_large_08_full.ckpt",
+    "output_log" : "log/T5/initial/0801-0901_light_prompt_500.csv"
+}
