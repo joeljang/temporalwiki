@@ -1,9 +1,9 @@
 
-from transformers import T5Tokenizer
 from Datasets import CustomDataset
 from torch.utils.data import DataLoader
 import csv
 import os
+import torch
 
 def evaluate(args, Model):
     model = Model(args)
@@ -12,9 +12,9 @@ def evaluate(args, Model):
 
     model.eval()
     model.to('cuda')
-    tokenizer = T5Tokenizer.from_pretrained(args.model_name_or_path)
+    tokenizer = model.tokenizer
     #Get Validation Data
-    if args.mode=='pretrain' or args.mode=='finetune':
+    if args.mode=='pretrain' or args.mode=='finetune' or args.mode=='evaluate':
         dataset = CustomDataset(tokenizer, 'validation', input_length=args.max_input_length, 
                         output_length=args.max_output_length, args=args)
     else:
@@ -27,6 +27,8 @@ def evaluate(args, Model):
     old_em_correct_num = 0
     new_em_correct_num = 0
     accuracy_correct_num = 0
+    f1_score = 0
+
     def clean_up(text):
         text =text.replace('<pad>', '')
         text = text.replace('</s>', '')
@@ -47,18 +49,41 @@ def evaluate(args, Model):
     with open(args.output_log, 'w', newline='') as writefile:  
         writer = csv.writer(writefile)
         for batch in iter(loader):
-            outs = model.model.generate(
-                batch["source_ids"].cuda(),
-                attention_mask=batch["source_mask"].cuda(),
-                use_cache=True,
-                decoder_attention_mask=batch['target_mask'].cuda(),
-                max_length=args.max_output_length,
-                num_beams=2,
-                early_stopping=True,
-            )
-            dec = model.ids_to_clean_text(outs)
-            texts = [tokenizer.decode(ids) for ids in batch['source_ids']]
-            targets = model.ids_to_clean_text(batch['target_ids'])
+            if 't5' in args.model_name_or_path:
+                outs = model.model.generate(
+                    batch["source_ids"].cuda(),
+                    attention_mask=batch["source_mask"].cuda(),
+                    use_cache=True,
+                    decoder_attention_mask=batch['target_mask'].cuda(),
+                    max_length=args.max_output_length,
+                    num_beams=2,
+                    early_stopping=True,
+                )
+                dec = model.ids_to_clean_text(outs)
+                texts = [tokenizer.decode(ids) for ids in batch['source_ids']]
+                targets = model.ids_to_clean_text(batch['target_ids'])
+            elif 'gpt2' in args.model_name_or_path:
+                outs = model.model.generate(
+                    batch["source_ids"].cuda(),
+                    attention_mask=batch["source_mask"].cuda(),
+                    use_cache=True,
+                    max_length=args.max_output_length + 10,
+                    num_beams=2,
+                    early_stopping=True,
+                )
+                outs = torch.transpose(torch.transpose(outs,0,1)[args.max_input_length:],0,1)
+                dec = model.ids_to_clean_text(outs)
+                clean_preds = []
+                for text in dec:
+                    if "." in text:
+                        clean_preds.append(text[:text.find(".")+1])
+                    else: 
+                        clean_preds.append(text)
+                dec = clean_preds
+                texts = [tokenizer.decode(ids) for ids in batch['source_ids']]
+                targets = model.ids_to_clean_text(batch['target_ids'])
+                print("clean_preds",clean_preds)
+                print("targets",targets)
                 
             for i in range(len(batch['source_ids'])):
                 total_cnt+=1
@@ -68,6 +93,7 @@ def evaluate(args, Model):
                 # print("prediction:",total_cnt,predicted)
 
                 em = model.exact_match_score(predicted, ground_truth)  
+                f1_score += model._f1_score(predicted, ground_truth)
                 writer.writerow([lines, ground_truth, predicted])
                 if em == 1:
                     em_correct_num+=1
@@ -76,4 +102,6 @@ def evaluate(args, Model):
     with open(args.output_log, 'a', newline='') as writefile:  
         writer = csv.writer(writefile)
         writer.writerow([em_correct_num, em_correct_num / total_cnt])
+        writer.writerow([f1_score/total_cnt])
     print(f'Number of correct predictions: {em_correct_num}. Percentage : {em_correct_num / total_cnt}')
+    print(f'F1 score is {f1_score / total_cnt}')

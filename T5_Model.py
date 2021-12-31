@@ -17,6 +17,7 @@ import string
 import copy
 import os
 import random
+import csv
 
 from deepspeed.runtime.lr_schedules import WarmupDecayLR
 import deepspeed
@@ -37,6 +38,8 @@ class T5(pl.LightningModule):
             self.dataset_index = 0
         self.global_epoch=0
         self.log('global_epoch', self.global_epoch, prog_bar=True, logger=True)
+        self.total_loss = 0
+        self.iteration = 0 
 
     def normalize_answer(self, s):
         """Lower text and remove punctuation, articles and extra whitespace."""
@@ -217,8 +220,10 @@ class T5(pl.LightningModule):
             },
         ]
 
-        optimizer = deepspeed.ops.adam.FusedAdam(optimizer_grouped_parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
-        #optimizer = Adafactor(optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False)
+        if self.hparams.accelerator is not None:
+            optimizer = deepspeed.ops.adam.FusedAdam(optimizer_grouped_parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+        else: 
+            optimizer = Adafactor(optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False)
 
         if self.hparams.use_lr_scheduling:
             if self.hparams.len_data==None:

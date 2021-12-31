@@ -10,6 +10,7 @@ import torch
 from Datasets import CustomDataset, Pretrain_Chunks
 from torch.utils.data import RandomSampler
 from torch.utils.data import DataLoader, ConcatDataset
+from collections import Counter
 
 import re
 import string
@@ -17,11 +18,14 @@ from deepspeed.runtime.lr_schedules import WarmupDecayLR
 import deepspeed
 import math
 import os
+import csv
 
 class GPT2(pl.LightningModule):
     def __init__(self, hparams):
         super(GPT2, self).__init__()
-        self.save_hyperparameters(hparams)      
+        self.save_hyperparameters(hparams)    
+        self.total_loss = 0
+        self.iteration = 0  
 
         self.model = GPT2LMHeadModel.from_pretrained(hparams.model_name_or_path)
         self.tokenizer = GPT2Tokenizer.from_pretrained(hparams.model_name_or_path)
@@ -75,25 +79,39 @@ class GPT2(pl.LightningModule):
     def exact_match_score(self, prediction, ground_truth):
         return int(self.normalize_answer(prediction) == self.normalize_answer(ground_truth))
 
+    def _f1_score(self, prediction, ground_truth):
+        prediction_tokens = self.normalize_answer(prediction).split()
+        ground_truth_tokens = self.normalize_answer(ground_truth).split()
+        common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
+        num_same = sum(common.values())
+        if num_same == 0:
+            return 0
+        precision = 1.0 * num_same / len(prediction_tokens)
+        recall = 1.0 * num_same / len(ground_truth_tokens)
+        f1 = (2 * precision * recall) / (precision + recall)
+        return f1
+
     def calculate_scores(self, predictions, ground_truths):
         em_score = 0
+        f1_score = 0
         
         for i in range(len(predictions)):
             ground_truth = ground_truths[i]
             prediction = predictions[i]
             em_score +=  self.exact_match_score(prediction, ground_truth)
+            f1_score += self._f1_score(prediction, ground_truth)
         
         em_score /= len(predictions)
-        return em_score*100
+        f1_score /= len(predictions)
+        return em_score*100, f1_score*100 
 
     def get_dataset(self, tokenizer, type_path, args, length=None):
         if type_path=='validation':
-            dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=50, 
-                        output_length=50, args=args, length=length)
+            dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
+                        output_length=args.max_output_length, args=args, length=length)
         else:
             dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
                         output_length=args.max_output_length, args=args, length=length)
-        return dataset
         return dataset
 
     def freeze_params(self, model):
@@ -116,15 +134,32 @@ class GPT2(pl.LightningModule):
     )
 
     def _step(self, batch):
-        lm_labels = batch["target_ids"]
+        lm_labels = batch["label_ids"].clone().detach()
         lm_labels[lm_labels[:, :] == self.tokenizer.pad_token_id] = -100
         outputs = self(
-            input_ids=batch["source_ids"],
-            attention_mask=batch["source_mask"],
+            input_ids=batch["label_ids"],
+            attention_mask=batch["label_mask"],
             lm_labels=lm_labels,
         )
 
         loss = outputs[0]
+        return loss
+
+    def valid_step(self, batch):
+        lm_labels = batch["label_ids"].clone().detach()
+        source_nonprompt_mask = batch['source_nonprompt_mask']
+        # print(source_nonprompt_mask)
+        lm_labels[source_nonprompt_mask == 0] = -100
+        # lm_labels[lm_labels[:, :] == self.tokenizer.pad_token_id] = -100
+        # print(lm_labels, batch["label_ids"])
+        outputs = self(
+            input_ids=batch["label_ids"],
+            attention_mask=batch["label_mask"],
+            lm_labels=lm_labels,
+        )
+
+        loss = outputs[0]
+        print(loss)
         return loss
     
     
@@ -136,17 +171,67 @@ class GPT2(pl.LightningModule):
     
      
     def _generative_step(self, batch, batch_idx):
-        loss = self._step(batch)
-        ppl = math.exp(loss)
+        self.iteration +=1
+        loss = self.valid_step(batch)
+        self.total_loss += loss
+        average_loss = self.total_loss / self.iteration 
+        ppl = torch.exp(average_loss)
+        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+
+        source = self.ids_to_clean_text(batch["source_ids"])
+        # print("source_ids", batch["source_ids"].shape, source)
+        generated_ids = self.model.generate(
+            batch["source_ids"],
+            attention_mask=batch["source_mask"],
+            use_cache=True,
+            max_length=self.hparams.max_input_length + 3,
+            num_beams=2,
+            early_stopping=True
+        )
+        generated_ids = torch.transpose(torch.transpose(generated_ids,0,1)[self.hparams.max_input_length:],0,1)
+        preds = self.ids_to_clean_text(generated_ids)
+        clean_preds = []
+        for text in preds:
+            if "." in text:
+                clean_preds.append(text[:text.find(".")+1])
+            else: 
+                clean_preds.append(text)
+        print("clean_preds",clean_preds)
+        targets = self.ids_to_clean_text(batch["target_ids"])
+        print("targets",targets)
+
+        if self.hparams.mode == 'finetune':
+            # If folder doesn't exist, then create it.
+            # MYDIR = ("/".join((self.hparams.output_log.split('/'))[:-1]))
+            # CHECK_FOLDER = os.path.isdir(MYDIR)
+            # if not CHECK_FOLDER:
+            #     os.makedirs(MYDIR)
+            #     print("created folder : ", MYDIR)
+            # else:
+            #     print(MYDIR, "folder already exists.")
+            with open(self.hparams.output_log, 'a', newline='') as writefile: 
+                writer = csv.writer(writefile)
+                for i in range(len(targets)):
+                    writer.writerow([source[i], clean_preds[i], targets[i], self.exact_match_score(clean_preds[i], targets[i])])
+        em_score, f1_score = self.calculate_scores(clean_preds, targets)
+
         if self.hparams.dataset=='data/wikipedia_09_gpt2' or 'wikipedia_0809_gpt2' or 'data/wikipedia_10_gpt2':
-            if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            if (batch_idx < (10000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
                 self.log('UnL_ppl', ppl, prog_bar=True, logger=True)
-            elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+                self.log('UnL_EM', em_score, prog_bar=True, logger=True)
+                self.log('UnL_F1', f1_score, prog_bar=True, logger=True)
+            elif (batch_idx < (15000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
                 self.log('UL_ppl', ppl, prog_bar=True, logger=True)
-            elif (batch_idx < (40000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+                self.log('UL_EM', em_score, prog_bar=True, logger=True)
+                self.log('UL_F1', f1_score, prog_bar=True, logger=True)
+            elif (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
                 self.log('NL_ppl', ppl, prog_bar=True, logger=True)
+                self.log('NL_EM', em_score, prog_bar=True, logger=True)
+                self.log('NL_F1', f1_score, prog_bar=True, logger=True)
             else:
                 self.log('IL_ppl', ppl, prog_bar=True, logger=True)
+                self.log('IL_EM', em_score, prog_bar=True, logger=True)
+                self.log('IL_F1', f1_score, prog_bar=True, logger=True)
         else:
             raise Exception('not supporting gpt2 for given dataset')
         
@@ -183,8 +268,10 @@ class GPT2(pl.LightningModule):
             },
         ]
 
-        optimizer = deepspeed.ops.adam.FusedAdam(optimizer_grouped_parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
-        #optimizer = Adafactor(optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False)
+        if self.hparams.accelerator is not None:
+            optimizer = deepspeed.ops.adam.FusedAdam(optimizer_grouped_parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+        else: 
+            optimizer = Adafactor(optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False)
 
         if self.hparams.use_lr_scheduling:
             if self.hparams.len_data==None:
