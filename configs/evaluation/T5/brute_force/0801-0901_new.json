@@ -1,0 +1,16 @@
+{
+    "input_length" : 25,
+    "output_length" : 10,
+    "dataset" : "0801-0901_new",
+    "dataset_version" : "full",
+    "train_batch_size" : 32,
+    "model" : "google/t5-large-ssm",
+    "method": "baseline",
+    "ngpu" : 1,
+    "num_workers" : 40,
+    "CUDA_VISIBLE_DEVICES" : "0",
+    "check_validation" : true,
+    "mode" : "evaluate",
+    "checkpoint_path" : "model_checkpoints/09/T5_3e-5_full",
+    "output_log": "log/T5/full/0801-0901_new_3e-5.csv"
+}

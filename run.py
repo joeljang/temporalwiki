@@ -149,6 +149,7 @@ if __name__ == '__main__':
         logger = wandb_logger,
         callbacks = callbacks,
         strategy=args.accelerator,
+        val_check_interval=0.25,
     )
     if 't5' in args.model_name_or_path:
         Model = load_model('T5')
@@ -158,7 +159,7 @@ if __name__ == '__main__':
         raise Exception('currently not supporting given model')
     
     if args.check_validation_only:
-        if args.mode == 'evaluate_ppl':
+        if 'evaluate_ppl' in args.mode:
             evaluate_ppl(args, Model)
         elif args.mode == 'evaluate':
             evaluate(args, Model)
