@@ -4,12 +4,15 @@ import os
 import json
 import random
 from evaluation import evaluate
+from evaluation_ppl import evaluate_ppl
 import numpy as np
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from T5_Model import T5
 from GPT2_Model import GPT2
+from transformers import T5Tokenizer, GPT2Tokenizer
+from models import load_model
 
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
@@ -36,12 +39,6 @@ if __name__ == '__main__':
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]=hparam.CUDA_VISIBLE_DEVICES
 
-    #Logging into WANDB if needed
-    if hparam.wandb_log:
-        wandb_logger = WandbLogger(project=hparam.wandb_project, name=hparam.wandb_run_name, entity="lklab_kaist")
-    else:
-        wandb_logger = None
-
     #Init configs that are not given
     if 'grad_norm' not in hparam:
         hparam.grad_norm = 0.5
@@ -53,6 +50,34 @@ if __name__ == '__main__':
         hparam.len_data = None
     if 'num_files' not in hparam:
         hparam.num_files = 1
+    if 'learning_rate' not in hparam:
+        hparam.learning_rate = None
+    if 'gradient_accumulation_steps' not in hparam:
+        hparam.gradient_accumulation_steps = 0
+    if 'num_train_epochs' not in hparam:
+        hparam.num_train_epochs = 0
+    if 'use_lr_scheduling' not in hparam:
+        hparam.use_lr_scheduling = False
+    if 'num_workers' not in hparam:
+        hparam.num_workers = 0
+    if 'output_dir' not in hparam:
+        hparam.output_dir = None
+    if 'wandb_log' not in hparam:
+        hparam.wandb_log = False
+    if 'accelerator' not in hparam:
+        hparam.accelerator = None
+    if 'checkpoint_path' not in hparam:
+        hparam.checkpoint_path =''
+    if 'resume_from_checkpoint' not in hparam:
+        hparam.resume_from_checkpoint = None
+    if 'fp16' not in hparam:
+        hparam.fp16 = False
+
+    #Logging into WANDB if needed
+    if hparam.wandb_log:
+        wandb_logger = WandbLogger(project=hparam.wandb_project, name=hparam.wandb_run_name, entity="lklab_kaist")
+    else:
+        wandb_logger = None
         
     #Setting configurations
     args_dict = dict(
@@ -126,14 +151,17 @@ if __name__ == '__main__':
         strategy=args.accelerator,
     )
     if 't5' in args.model_name_or_path:
-        Model = T5
+        Model = load_model('T5')
     elif 'gpt2' in args.model_name_or_path: 
-        Model = GPT2
+        Model = load_model('GPT2')
     else:
         raise Exception('currently not supporting given model')
     
     if args.check_validation_only:
-       evaluate(args, Model)
+        if args.mode == 'evaluate_ppl':
+            evaluate_ppl(args, Model)
+        elif args.mode == 'evaluate':
+            evaluate(args, Model)
     else:
         set_seed(40)
         if args.checkpoint_path!="":

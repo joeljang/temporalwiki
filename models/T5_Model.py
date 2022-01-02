@@ -17,15 +17,30 @@ import string
 import copy
 import os
 import random
+import csv
 
 from deepspeed.runtime.lr_schedules import WarmupDecayLR
 import deepspeed
+
+from models.T5_Model_CL import T5ForConditionalGeneration as T5_Kadapter
 
 class T5(pl.LightningModule):
     def __init__(self, hparams):
         super(T5, self).__init__()
         self.save_hyperparameters(hparams)
-        self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
+        
+        if hparams.method=='baseline':
+            self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
+        elif hparams.method=='kadapter':
+            self.model = T5_Kadapter.from_pretrained(hparams.model_name_or_path)
+            self.freeze_params(self.model.get_encoder()) #Freezing the encoder
+            # Unfreezing the parameters used for kadapters in encoder
+            for name, param in self.model.named_parameters():
+                if 'kadapter' in name:
+                    param.requires_grad = True
+        else:
+            raise Exception('Currently not supporting {hparams.method}')
+        
         self.tokenizer = T5Tokenizer.from_pretrained(hparams.tokenizer_name_or_path)
         self.output_dir = self.hparams.output_dir
         if self.hparams.mode=='pretrain_brute':
@@ -37,7 +52,11 @@ class T5(pl.LightningModule):
             self.dataset_index = 0
         self.global_epoch=0
         self.log('global_epoch', self.global_epoch, prog_bar=True, logger=True)
-
+        
+    def freeze_params(self, model):
+        for par in model.parameters():
+            par.requires_grad = False
+            
     def normalize_answer(self, s):
         """Lower text and remove punctuation, articles and extra whitespace."""
 
@@ -167,8 +186,6 @@ class T5(pl.LightningModule):
             
         loss = self._step(batch)
 
-        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-
         em_score = 0
         accuracy = 0
         f1_score = 0
@@ -179,19 +196,15 @@ class T5(pl.LightningModule):
         em_score = torch.tensor(em_score,dtype=torch.float32)
         accuracy = torch.tensor(accuracy,dtype=torch.float32)
         f1_score = torch.tensor(f1_score, dtype=torch.float32)
-        if self.hparams.dataset=='data/wikipedia_09' or self.hparams.dataset=='wikipedia_0809':
-            if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('UnL_em_score', em_score, prog_bar=True, logger=True)
-                self.log('UnL_f1_score', f1_score, prog_bar=True, logger=True)
-            elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('UL_em_score', em_score, prog_bar=True, logger=True)
-                self.log('UL_f1_score', f1_score, prog_bar=True, logger=True)
-            else:
-                self.log('NL_em_score', em_score, prog_bar=True, logger=True)
-                self.log('NL_f1_score', f1_score, prog_bar=True, logger=True)
+
+        if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('UnL_loss', loss, prog_bar=True, logger=True)
+        elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('UL_loss', loss, prog_bar=True, logger=True)
+        elif (batch_idx < (40000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('NL_loss', loss, prog_bar=True, logger=True)
         else:
-            self.log('em_score', em_score, prog_bar=True, logger=True)
-            self.log('f1_score', f1_score, prog_bar=True, logger=True)
+            self.log('IL_loss', loss, prog_bar=True, logger=True)
 
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
@@ -217,8 +230,10 @@ class T5(pl.LightningModule):
             },
         ]
 
-        optimizer = deepspeed.ops.adam.FusedAdam(optimizer_grouped_parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
-        #optimizer = Adafactor(optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False)
+        if self.hparams.accelerator is not None:
+            optimizer = deepspeed.ops.adam.FusedAdam(optimizer_grouped_parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+        else: 
+            optimizer = Adafactor(optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False)
 
         if self.hparams.use_lr_scheduling:
             if self.hparams.len_data==None:
@@ -228,7 +243,9 @@ class T5(pl.LightningModule):
             denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps)
 
             steps_per_epoch = ( len_data // denomniator ) + 1
-            total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 2
+            schedule_scale_factor = 8
+            total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * self.hparams.num_files * schedule_scale_factor
+
             print(f'total number of steps : {total_num_steps}')
             scheduler = WarmupDecayLR(optimizer, total_num_steps = total_num_steps ,warmup_max_lr = self.hparams.learning_rate, warmup_num_steps = int(total_num_steps * 0.1))
             return [optimizer], [{"scheduler": scheduler, "interval": "step", "name": "learning rate"}]
