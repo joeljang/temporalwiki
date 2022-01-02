@@ -158,7 +158,7 @@ if __name__ == '__main__':
         raise Exception('currently not supporting given model')
     
     if args.check_validation_only:
-        if args.mode == 'evaluate_ppl':
+        if 'evaluate_ppl' in args.mode:
             evaluate_ppl(args, Model)
         elif args.mode == 'evaluate':
             evaluate(args, Model)

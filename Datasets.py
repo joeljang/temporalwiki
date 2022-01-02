@@ -50,10 +50,13 @@ class CustomDataset(Dataset):
         else:
             # evaluation dataset
             if self.args.check_validation_only:
-                if self.args.mode == 'evaluate_ppl':
+                if self.args.mode == 'evaluate_ppl_corpus':
                     self.dataset = pd.read_csv('data/perplexity/'+self.args.dataset+'.csv')
                 else: 
-                    self.dataset = pd.read_csv('data/evaluation/aligned/'+ self.args.dataset + '.csv')
+                    if self.args.dataset == 'IL':
+                        self.dataset = pd.read_csv('data/evaluation/IL.csv')
+                    else: 
+                        self.dataset = pd.read_csv('data/evaluation/aligned/'+ self.args.dataset + '.csv')
             # validation dataset
             elif self.args.dataset=='IL':
                 self.dataset = pd.read_csv('data/evaluation/IL.csv')
@@ -101,7 +104,7 @@ class CustomDataset(Dataset):
         label_ = None
         ppl_input = None
         if self.type_path=='validation' and ('gpt2' in self.args.model_name_or_path):
-            if self.args.mode == 'evaluate_ppl':
+            if self.args.mode == 'evaluate_ppl_corpus':
                 input_ = example_batch['text']
                 target_ = example_batch['text']
             else: 
@@ -110,10 +113,13 @@ class CustomDataset(Dataset):
                 o = example_batch['objective']
                 if self.args.mode == 'evaluate_ppl':
                     input_ = s + ' ' + r + ' ' + o
-                    input_nonprompt = o
+                    # input_ = r.capitalize() + ' of ' + s + ' is ' + o + '.'
+                    input_nonprompt = ' ' + o 
                     target_ = s + ' ' + r + ' ' + o 
+                    # target_ = r.capitalize() + ' of ' + s + ' is ' + o + '.'
                 elif self.args.mode == 'evaluate':
                     input_ = s + ' ' + r
+                    # input_ = r.capitalize() + ' of ' + s + ' is' 
                     target_ = o
                 else: 
                     label_ = s + ' ' + r + ' ' + o 
@@ -121,9 +127,9 @@ class CustomDataset(Dataset):
                     input_ = s + ' ' + r
                     input_nonprompt = o
         elif self.type_path=='validation' and ('t5' in self.args.model_name_or_path):
-            if self.args.mode == 'evaluate_ppl':
-                input_ = example_batch['text']
-                target_ = example_batch['text']
+            if self.args.mode == 'evaluate_ppl_corpus':
+                input_ = example_batch['input']
+                target_ = example_batch['output']
             else: 
                 s = example_batch['subject']
                 r = example_batch['relation']
