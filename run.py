@@ -149,7 +149,6 @@ if __name__ == '__main__':
         logger = wandb_logger,
         callbacks = callbacks,
         strategy=args.accelerator,
-        val_check_interval=0.25,
     )
     if 't5' in args.model_name_or_path:
         Model = load_model('T5')
