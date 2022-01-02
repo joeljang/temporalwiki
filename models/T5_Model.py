@@ -1,46 +1,47 @@
 import pytorch_lightning as pl
-
+import torch.nn.functional as F
 from transformers import (
     Adafactor,
-    GPT2LMHeadModel,
-    GPT2Tokenizer,
+    T5Tokenizer,
+    T5ForConditionalGeneration,
 )
-
 import torch
 from Datasets import CustomDataset, Pretrain_Chunks
-from torch.utils.data import RandomSampler
+from torch.utils.data import RandomSampler, SequentialSampler
 from torch.utils.data import DataLoader, ConcatDataset
+from rouge import Rouge
 from collections import Counter
 
 import re
 import string
-from deepspeed.runtime.lr_schedules import WarmupDecayLR
-import deepspeed
-import math
+import copy
 import os
+import random
 import csv
 
-class GPT2(pl.LightningModule):
+from deepspeed.runtime.lr_schedules import WarmupDecayLR
+import deepspeed
+
+from models.T5_Model_CL import T5ForConditionalGeneration as T5_Kadapter
+
+class T5(pl.LightningModule):
     def __init__(self, hparams):
-        super(GPT2, self).__init__()
-        self.save_hyperparameters(hparams)    
-        self.total_loss = 0
-        self.iteration = 0  
-
-        self.model = GPT2LMHeadModel.from_pretrained(hparams.model_name_or_path)
-        self.tokenizer = GPT2Tokenizer.from_pretrained(hparams.model_name_or_path)
-        self.tokenizer.add_special_tokens({
-            "eos_token": "</s>",
-            "bos_token": "<s>",
-            "unk_token": "<unk>",
-            "pad_token": "<pad>",
-            "mask_token": "<mask>"
-            })
-
-
-        self.model.resize_token_embeddings(len(self.tokenizer))
-        self.tokenizer.padding_side = "left"
-
+        super(T5, self).__init__()
+        self.save_hyperparameters(hparams)
+        
+        if hparams.method=='baseline':
+            self.model = T5ForConditionalGeneration.from_pretrained(hparams.model_name_or_path)
+        elif hparams.method=='kadapter':
+            self.model = T5_Kadapter.from_pretrained(hparams.model_name_or_path)
+            self.freeze_params(self.model.get_encoder()) #Freezing the encoder
+            # Unfreezing the parameters used for kadapters in encoder
+            for name, param in self.model.named_parameters():
+                if 'kadapter' in name:
+                    param.requires_grad = True
+        else:
+            raise Exception('Currently not supporting {hparams.method}')
+        
+        self.tokenizer = T5Tokenizer.from_pretrained(hparams.tokenizer_name_or_path)
         self.output_dir = self.hparams.output_dir
         if self.hparams.mode=='pretrain_brute':
             self.dataset_lst = []
@@ -51,8 +52,11 @@ class GPT2(pl.LightningModule):
             self.dataset_index = 0
         self.global_epoch=0
         self.log('global_epoch', self.global_epoch, prog_bar=True, logger=True)
-
         
+    def freeze_params(self, model):
+        for par in model.parameters():
+            par.requires_grad = False
+            
     def normalize_answer(self, s):
         """Lower text and remove punctuation, articles and extra whitespace."""
 
@@ -72,12 +76,17 @@ class GPT2(pl.LightningModule):
         def rid_of_specials(text):
             text = text.replace("<extra_id_0>", "")
             text = text.replace("<extra_id_1>", "")
+            text = text.replace("<extra_id_2>", "")
+            text = text.replace("<extra_id_3>", "")
             return text
 
         return rid_of_specials(white_space_fix(remove_articles(remove_punc(lower(s)))))
 
     def exact_match_score(self, prediction, ground_truth):
         return int(self.normalize_answer(prediction) == self.normalize_answer(ground_truth))
+    
+    def accuracy_match_score(self, prediction, ground_truth):
+        return int(prediction.strip() == ground_truth.strip())
 
     def _f1_score(self, prediction, ground_truth):
         prediction_tokens = self.normalize_answer(prediction).split()
@@ -93,31 +102,33 @@ class GPT2(pl.LightningModule):
 
     def calculate_scores(self, predictions, ground_truths):
         em_score = 0
-        f1_score = 0
+        accuracy = 0
         
         for i in range(len(predictions)):
             ground_truth = ground_truths[i]
             prediction = predictions[i]
             em_score +=  self.exact_match_score(prediction, ground_truth)
-            f1_score += self._f1_score(prediction, ground_truth)
+            accuracy += self.accuracy_match_score(prediction, ground_truth)
         
         em_score /= len(predictions)
+        accuracy /= len(predictions)
+        return em_score*100, accuracy*100
+
+    def calculate_f1_scores(self, predictions, ground_truths):
+        f1_score = 0 
+        for i in range(len(predictions)):
+            ground_truth = ground_truths[i]
+            prediction = predictions[i]
+            f1_score += self._f1_score(prediction, ground_truth)
+
         f1_score /= len(predictions)
-        return em_score*100, f1_score*100 
+        return f1_score*100
 
     def get_dataset(self, tokenizer, type_path, args, length=None):
-        if type_path=='validation':
-            dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
-                        output_length=args.max_output_length, args=args, length=length)
-        else:
-            dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
+        dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
                         output_length=args.max_output_length, args=args, length=length)
         return dataset
-
-    def freeze_params(self, model):
-        for par in model.parameters():
-            par.requires_grad = False
-    
+             
     def lmap(self, f, x):
         """list(map(f, x))"""
         return list(map(f, x))
@@ -130,36 +141,22 @@ class GPT2(pl.LightningModule):
         return self.model(
             input_ids,
             attention_mask=attention_mask,
+            decoder_input_ids=decoder_input_ids,
+            decoder_attention_mask=decoder_attention_mask,
             labels=lm_labels,
     )
 
     def _step(self, batch):
-        lm_labels = batch["label_ids"].clone().detach()
+        lm_labels = batch["target_ids"]
         lm_labels[lm_labels[:, :] == self.tokenizer.pad_token_id] = -100
         outputs = self(
-            input_ids=batch["label_ids"],
-            attention_mask=batch["label_mask"],
+            input_ids=batch["source_ids"],
+            attention_mask=batch["source_mask"],
             lm_labels=lm_labels,
+            decoder_attention_mask=batch['target_mask']
         )
 
         loss = outputs[0]
-        return loss
-
-    def valid_step(self, batch):
-        lm_labels = batch["label_ids"].clone().detach()
-        source_nonprompt_mask = batch['source_nonprompt_mask']
-        # print(source_nonprompt_mask)
-        lm_labels[source_nonprompt_mask == 0] = -100
-        # lm_labels[lm_labels[:, :] == self.tokenizer.pad_token_id] = -100
-        # print(lm_labels, batch["label_ids"])
-        outputs = self(
-            input_ids=batch["label_ids"],
-            attention_mask=batch["label_mask"],
-            lm_labels=lm_labels,
-        )
-
-        loss = outputs[0]
-        print(loss)
         return loss
     
     
@@ -170,84 +167,49 @@ class GPT2(pl.LightningModule):
         return self.lmap(str.strip, gen_text)
     
      
-    def _generative_step(self, batch, batch_idx):
-        self.iteration +=1
-        loss = self.valid_step(batch)
-        self.total_loss += loss
-        average_loss = self.total_loss / self.iteration 
-        ppl = torch.exp(average_loss)
-        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-
-        source = self.ids_to_clean_text(batch["source_ids"])
-        # print("source_ids", batch["source_ids"].shape, source)
+    def _generative_step(self, batch, batch_idx):     
         generated_ids = self.model.generate(
             batch["source_ids"],
             attention_mask=batch["source_mask"],
             use_cache=True,
-            max_length=self.hparams.max_input_length + 3,
+            decoder_attention_mask=batch['target_mask'],
+            max_length=10,
             num_beams=2,
             early_stopping=True
         )
-        generated_ids = torch.transpose(torch.transpose(generated_ids,0,1)[self.hparams.max_input_length:],0,1)
-        preds = self.ids_to_clean_text(generated_ids)
-        clean_preds = []
-        for text in preds:
-            if "." in text:
-                clean_preds.append(text[:text.find(".")+1])
-            else: 
-                clean_preds.append(text)
-        print("clean_preds",clean_preds)
-        targets = self.ids_to_clean_text(batch["target_ids"])
-        print("targets",targets)
-
-        if self.hparams.mode == 'finetune':
-            # If folder doesn't exist, then create it.
-            # MYDIR = ("/".join((self.hparams.output_log.split('/'))[:-1]))
-            # CHECK_FOLDER = os.path.isdir(MYDIR)
-            # if not CHECK_FOLDER:
-            #     os.makedirs(MYDIR)
-            #     print("created folder : ", MYDIR)
-            # else:
-            #     print(MYDIR, "folder already exists.")
-            with open(self.hparams.output_log, 'a', newline='') as writefile: 
-                writer = csv.writer(writefile)
-                for i in range(len(targets)):
-                    writer.writerow([source[i], clean_preds[i], targets[i], self.exact_match_score(clean_preds[i], targets[i])])
-        em_score, f1_score = self.calculate_scores(clean_preds, targets)
-
-        if self.hparams.dataset=='data/wikipedia_09_gpt2' or 'wikipedia_0809_gpt2' or 'data/wikipedia_10_gpt2':
-            if (batch_idx < (10000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('UnL_ppl', ppl, prog_bar=True, logger=True)
-                self.log('UnL_EM', em_score, prog_bar=True, logger=True)
-                self.log('UnL_F1', f1_score, prog_bar=True, logger=True)
-            elif (batch_idx < (15000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('UL_ppl', ppl, prog_bar=True, logger=True)
-                self.log('UL_EM', em_score, prog_bar=True, logger=True)
-                self.log('UL_F1', f1_score, prog_bar=True, logger=True)
-            elif (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-                self.log('NL_ppl', ppl, prog_bar=True, logger=True)
-                self.log('NL_EM', em_score, prog_bar=True, logger=True)
-                self.log('NL_F1', f1_score, prog_bar=True, logger=True)
-            else:
-                self.log('IL_ppl', ppl, prog_bar=True, logger=True)
-                self.log('IL_EM', em_score, prog_bar=True, logger=True)
-                self.log('IL_F1', f1_score, prog_bar=True, logger=True)
-        else:
-            raise Exception('not supporting gpt2 for given dataset')
         
+        preds = self.ids_to_clean_text(generated_ids)
+        targets = self.ids_to_clean_text(batch["target_ids"])
+        source = self.ids_to_clean_text(batch["source_ids"])
+        print("preds", preds)
+        print("targets", targets)
+            
+        loss = self._step(batch)
+
+        em_score = 0
+        accuracy = 0
+        f1_score = 0
+
+        em_score, accuracy = self.calculate_scores(preds, targets)
+        f1_score = self.calculate_f1_scores(preds, targets)
+
+        em_score = torch.tensor(em_score,dtype=torch.float32)
+        accuracy = torch.tensor(accuracy,dtype=torch.float32)
+        f1_score = torch.tensor(f1_score, dtype=torch.float32)
+
+        if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('UnL_loss', loss, prog_bar=True, logger=True)
+        elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('UL_loss', loss, prog_bar=True, logger=True)
+        elif (batch_idx < (40000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('NL_loss', loss, prog_bar=True, logger=True)
+        else:
+            self.log('IL_loss', loss, prog_bar=True, logger=True)
+
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
         self.log("loss", loss)
         return loss
-
-    def on_train_epoch_end(self):
-        if self.hparams.mode=='pretrain_brute':
-            self.dataset_index+=1
-            if self.dataset_index==self.hparams.num_files:
-                self.global_epoch+=1
-                self.log('global_epoch', self.global_epoch, prog_bar=True, logger=True)
-                self.dataset_index=0
-            self.train_dataloader()
 
     def validation_step(self, batch, batch_idx):
         return self._generative_step(batch, batch_idx)
@@ -281,15 +243,23 @@ class GPT2(pl.LightningModule):
             denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps)
 
             steps_per_epoch = ( len_data // denomniator ) + 1
-            if self.hparams.mode=='pretrain_brute':
-                total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 16
-            else:
-                total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * 8
+            schedule_scale_factor = 8
+            total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * self.hparams.num_files * schedule_scale_factor
+
             print(f'total number of steps : {total_num_steps}')
             scheduler = WarmupDecayLR(optimizer, total_num_steps = total_num_steps ,warmup_max_lr = self.hparams.learning_rate, warmup_num_steps = int(total_num_steps * 0.1))
             return [optimizer], [{"scheduler": scheduler, "interval": "step", "name": "learning rate"}]
         else:
             return [optimizer]
+    
+    def on_train_epoch_end(self):
+        if self.hparams.mode=='pretrain_brute':
+            self.dataset_index+=1
+            if self.dataset_index==self.hparams.num_files:
+                self.global_epoch+=1
+                self.log('global_epoch', self.global_epoch, prog_bar=True, logger=True)
+                self.dataset_index=0
+            self.train_dataloader()
 
     def train_dataloader(self): 
         if self.hparams.mode=='pretrain_brute':
@@ -298,6 +268,7 @@ class GPT2(pl.LightningModule):
             train_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="train", args=self.hparams)
         sampler = RandomSampler(train_dataset)
         dataloader = DataLoader(train_dataset, sampler=sampler,  batch_size=self.hparams.train_batch_size, drop_last=True, num_workers=self.hparams.num_workers)
+        #dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size, num_workers=self.hparams.num_workers)
         return dataloader
 
     def val_dataloader(self):
