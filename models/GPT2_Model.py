@@ -26,8 +26,14 @@ class GPT2(pl.LightningModule):
     def __init__(self, hparams):
         super(GPT2, self).__init__()
         self.save_hyperparameters(hparams)    
-        self.total_loss = 0
-        self.iteration = 0  
+        self.unchanged_loss = 0
+        self.updated_loss = 0
+        self.new_loss = 0
+        self.invariant_loss = 0
+        self.unchanged = 0
+        self.updated = 0
+        self.new = 0
+        self.invariant = 0
 
         self.model = GPT2LMHeadModel.from_pretrained(hparams.model_name_or_path)
         self.save_hyperparameters(hparams)      
@@ -150,11 +156,11 @@ class GPT2(pl.LightningModule):
     )
 
     def _step(self, batch):
-        lm_labels = batch["label_ids"].clone().detach()
+        lm_labels = batch["target_ids"]
         lm_labels[lm_labels[:, :] == self.tokenizer.pad_token_id] = -100
         outputs = self(
-            input_ids=batch["label_ids"],
-            attention_mask=batch["label_mask"],
+            input_ids=batch["source_ids"],
+            attention_mask=batch["source_mask"],
             lm_labels=lm_labels,
         )
 
@@ -187,57 +193,73 @@ class GPT2(pl.LightningModule):
     
      
     def _generative_step(self, batch, batch_idx):
-        self.iteration +=1
-        loss = self.valid_step(batch)
-        self.total_loss += loss
-        average_loss = self.total_loss / self.iteration 
-        ppl = torch.exp(average_loss)
+        loss = self._step(batch)
         self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
-        source = self.ids_to_clean_text(batch["source_ids"])
-        generated_ids = self.model.generate(
-            batch["source_ids"],
-            attention_mask=batch["source_mask"],
-            use_cache=True,
-            max_length=self.hparams.max_input_length + 3,
-            num_beams=2,
-            early_stopping=True
-        )
-        generated_ids = torch.transpose(torch.transpose(generated_ids,0,1)[self.hparams.max_input_length:],0,1)
-        preds = self.ids_to_clean_text(generated_ids)
-        clean_preds = []
-        for text in preds:
-            if "." in text:
-                clean_preds.append(text[:text.find(".")+1])
-            else: 
-                clean_preds.append(text)
-        print("clean_preds",clean_preds)
-        targets = self.ids_to_clean_text(batch["target_ids"])
-        print("targets",targets)
+        # source = self.ids_to_clean_text(batch["source_ids"])
+        # generated_ids = self.model.generate(
+        #     batch["source_ids"],
+        #     attention_mask=batch["source_mask"],
+        #     use_cache=True,
+        #     max_length=self.hparams.max_input_length + 3,
+        #     num_beams=2,
+        #     early_stopping=True
+        # )
+        # generated_ids = torch.transpose(torch.transpose(generated_ids,0,1)[self.hparams.max_input_length:],0,1)
+        # preds = self.ids_to_clean_text(generated_ids)
+        # clean_preds = []
+        # for text in preds:
+        #     if "." in text:
+        #         clean_preds.append(text[:text.find(".")+1])
+        #     else: 
+        #         clean_preds.append(text)
+        # print("clean_preds",clean_preds)
+        # targets = self.ids_to_clean_text(batch["target_ids"])
+        # print("targets",targets)
 
-        if self.hparams.mode == 'finetune':
-            with open(self.hparams.output_log, 'a', newline='') as writefile: 
-                writer = csv.writer(writefile)
-                for i in range(len(targets)):
-                    writer.writerow([source[i], clean_preds[i], targets[i], self.exact_match_score(clean_preds[i], targets[i])])
-        em_score, f1_score = self.calculate_scores(clean_preds, targets)
+        # if self.hparams.mode == 'finetune':
+        #     with open(self.hparams.output_log, 'a', newline='') as writefile: 
+        #         writer = csv.writer(writefile)
+        #         for i in range(len(targets)):
+        #             writer.writerow([source[i], clean_preds[i], targets[i], self.exact_match_score(clean_preds[i], targets[i])])
+        # em_score, f1_score = self.calculate_scores(clean_preds, targets)
 
         if (batch_idx < (10000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.unchanged +=1
+            self.unchanged_loss += loss
+            average_loss = self.unchanged_loss / self.unchanged 
+            ppl = torch.exp(average_loss)
             self.log('UnL_ppl', ppl, prog_bar=True, logger=True)
-            self.log('UnL_EM', em_score, prog_bar=True, logger=True)
-            self.log('UnL_F1', f1_score, prog_bar=True, logger=True)
+            print('UnL_ppl', ppl)
+            # self.log('UnL_EM', em_score, prog_bar=True, logger=True)
+            # self.log('UnL_F1', f1_score, prog_bar=True, logger=True)
         elif (batch_idx < (15000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.updated +=1
+            self.updated_loss += loss
+            average_loss = self.updated_loss / self.updated 
+            ppl = torch.exp(average_loss)
             self.log('UL_ppl', ppl, prog_bar=True, logger=True)
-            self.log('UL_EM', em_score, prog_bar=True, logger=True)
-            self.log('UL_F1', f1_score, prog_bar=True, logger=True)
+            print('UL_ppl', ppl)
+            # self.log('UL_EM', em_score, prog_bar=True, logger=True)
+            # self.log('UL_F1', f1_score, prog_bar=True, logger=True)
         elif (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.new +=1
+            self.new_loss += loss
+            average_loss = self.new_loss / self.new 
+            ppl = torch.exp(average_loss)
             self.log('NL_ppl', ppl, prog_bar=True, logger=True)
-            self.log('NL_EM', em_score, prog_bar=True, logger=True)
-            self.log('NL_F1', f1_score, prog_bar=True, logger=True)
+            print('NL_ppl', ppl)
+            # self.log('NL_EM', em_score, prog_bar=True, logger=True)
+            # self.log('NL_F1', f1_score, prog_bar=True, logger=True)
         else:
+            self.invariant +=1
+            self.invariant_loss += loss
+            average_loss = self.invariant_loss / self.invariant 
+            ppl = torch.exp(average_loss)
             self.log('IL_ppl', ppl, prog_bar=True, logger=True)
-            self.log('IL_EM', em_score, prog_bar=True, logger=True)
-            self.log('IL_F1', f1_score, prog_bar=True, logger=True)
+            print('IL_ppl', ppl)
+            # self.log('IL_EM', em_score, prog_bar=True, logger=True)
+            # self.log('IL_F1', f1_score, prog_bar=True, logger=True)
         
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)

@@ -5,3 +5,4 @@ __pycache__
 model_checkpoints
 log
 ckl_data
+*.sh

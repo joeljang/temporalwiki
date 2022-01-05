@@ -9,8 +9,8 @@ import numpy as np
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
-from T5_Model import T5
-from GPT2_Model import GPT2
+# from T5_Model import T5
+# from GPT2_Model import GPT2
 from transformers import T5Tokenizer, GPT2Tokenizer
 from models import load_model
 
@@ -149,6 +149,7 @@ if __name__ == '__main__':
         logger = wandb_logger,
         callbacks = callbacks,
         strategy=args.accelerator,
+        num_sanity_val_steps=-1
     )
     if 't5' in args.model_name_or_path:
         Model = load_model('T5')

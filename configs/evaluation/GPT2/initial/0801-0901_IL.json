@@ -8,9 +8,9 @@
     "method": "baseline",
     "ngpu" : 1,
     "num_workers" : 40,
-    "CUDA_VISIBLE_DEVICES" : "3",
+    "CUDA_VISIBLE_DEVICES" : "2",
     "check_validation" : true,
     "mode" : "evaluate_ppl",
-    "checkpoint_path" : "model_checkpoints/08/GPT2_large_08_full_lr3e-5.ckpt",
+    "checkpoint_path" : "model_checkpoints/08/GPT2_large_08_full.ckpt",
     "output_log": "log/GPT2/initial/0801-0901_IL_ppl.csv"
 }

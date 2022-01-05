@@ -3,7 +3,7 @@
     "output_length" : 25,
     "dataset" : "0801-0901_new",
     "dataset_version" : "full",
-    "train_batch_size" : 1,
+    "train_batch_size" : 32,
     "model" : "gpt2-large",
     "method": "baseline",
     "ngpu" : 1,

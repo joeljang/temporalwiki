@@ -54,25 +54,25 @@ class CustomDataset(Dataset):
             elif self.args.dataset=='IL':
                 self.dataset = pd.read_csv('data/evaluation/IL.csv')
             elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809' or self.args.dataset=='data/wikipedia_09_gpt2' or self.args.dataset=='wikipedia_0809_gpt2':
-                df1 = pd.read_csv('data/evaluation/0801-0901_unchanged.csv')
-                df2 = pd.read_csv('data/evaluation/0801-0901_updated.csv')
-                df3 = pd.read_csv('data/evaluation/0801-0901_new.csv')
+                df1 = pd.read_csv('data/evaluation/aligned/0801-0901_unchanged.csv')
+                df2 = pd.read_csv('data/evaluation/aligned/0801-0901_updated.csv')
+                df3 = pd.read_csv('data/evaluation/aligned/0801-0901_new.csv')
                 df4 = pd.read_csv('data/evaluation/IL.csv')
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
                 self.dataset = pd.concat([df1, df4])
             elif self.args.dataset=='data/wikipedia_10_gpt2' or self.args.dataset=='data/wikipedia_10' or self.args.dataset=='wikipedia_0910' or self.args.dataset=='wikipedia_0910_gpt2':
-                df1 = pd.read_csv('data/evaluation/0901-1001_unchanged.csv')
-                df2 = pd.read_csv('data/evaluation/0901-1001_updated.csv')
-                df3 = pd.read_csv('data/evaluation/0901-1001_new.csv')
+                df1 = pd.read_csv('data/evaluation/aligned/0901-1001_unchanged.csv')
+                df2 = pd.read_csv('data/evaluation/aligned/0901-1001_updated.csv')
+                df3 = pd.read_csv('data/evaluation/aligned/0901-1001_new.csv')
                 df4 = pd.read_csv('data/evaluation/IL.csv')
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
                 self.dataset = pd.concat([df1, df4])
             elif self.args.dataset=='data/wikipedia_11_gpt2' or self.args.dataset=='data/wikipedia_11' or self.args.dataset=='wikipedia_1011' or self.args.dataset=='wikipedia_1011_gpt2':
-                df1 = pd.read_csv('data/evaluation/1001-1101_unchanged.csv')
-                df2 = pd.read_csv('data/evaluation/1001-1101_updated.csv')
-                df3 = pd.read_csv('data/evaluation/1001-1101_new.csv')
+                df1 = pd.read_csv('data/evaluation/aligned/1001-1101_unchanged.csv')
+                df2 = pd.read_csv('data/evaluation/aligned/1001-1101_updated.csv')
+                df3 = pd.read_csv('data/evaluation/aligned/1001-1101_new.csv')
                 df4 = pd.read_csv('data/evaluation/IL.csv')
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
@@ -91,7 +91,6 @@ class CustomDataset(Dataset):
         # continual pretraining
         input_nonprompt = None
         label_ = None
-        ppl_input = None
         if self.type_path=='validation' and ('gpt2' in self.args.model_name_or_path):
             if self.args.mode == 'evaluate_ppl_corpus':
                 input_ = example_batch['text']
@@ -111,10 +110,10 @@ class CustomDataset(Dataset):
                     # input_ = r.capitalize() + ' of ' + s + ' is' 
                     target_ = o
                 else: 
-                    label_ = s + ' ' + r + ' ' + o 
-                    target_ = o
-                    input_ = s + ' ' + r
-                    input_nonprompt = o
+                    # label_ = s + ' ' + r + ' ' + o 
+                    target_ = s + ' ' + r + ' ' + o 
+                    input_ = s + ' ' + r + ' ' + o 
+                    # input_nonprompt = o
         elif self.type_path=='validation' and ('t5' in self.args.model_name_or_path):
             if self.args.mode == 'evaluate_ppl_corpus':
                 input_ = example_batch['input']
@@ -157,15 +156,12 @@ class CustomDataset(Dataset):
                                                     padding='max_length', truncation=True, return_tensors="pt") 
         if label_ is not None:
             label_ = self.tokenizer.batch_encode_plus([str(label_)], max_length=self.input_length, 
-                                                    padding='max_length', truncation=True, return_tensors="pt")
-        if ppl_input is not None:
-            ppl_input = self.tokenizer.batch_encode_plus([str(ppl_input)], max_length=self.input_length, 
-                                                    padding='max_length', truncation=True, return_tensors="pt")               
+                                                    padding='max_length', truncation=True, return_tensors="pt")        
         
-        return source, targets, input_nonprompt, label_, ppl_input
+        return source, targets, input_nonprompt, label_
   
     def __getitem__(self, index):
-        source, targets, input_nonprompt, label, ppl_input = self.convert_to_features(self.dataset.iloc[index]) 
+        source, targets, input_nonprompt, label = self.convert_to_features(self.dataset.iloc[index]) 
         
         source_ids = source["input_ids"].squeeze()
         target_ids = targets["input_ids"].squeeze()

@@ -10,7 +10,7 @@
     "num_workers" : 40,
     "CUDA_VISIBLE_DEVICES" : "2",
     "check_validation" : true,
-    "mode" : "evaluate_ppl",
+    "mode" : "evaluate_ppl_corpus",
     "checkpoint_path" : "model_checkpoints/10/GPT2_1e-4_full",
     "output_log": "log/GPT2/brute_force/0901-1001_ppl_full.csv"
 }

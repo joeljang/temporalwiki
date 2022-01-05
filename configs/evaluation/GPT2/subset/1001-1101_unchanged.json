@@ -1,0 +1,16 @@
+{
+    "input_length" : 25,
+    "output_length" : 25,
+    "dataset" : "1001-1101_unchanged",
+    "dataset_version" : "full",
+    "train_batch_size" : 32,
+    "model" : "gpt2-large",
+    "method": "baseline",
+    "ngpu" : 1,
+    "num_workers" : 40,
+    "CUDA_VISIBLE_DEVICES" : "2",
+    "check_validation" : true,
+    "mode" : "evaluate_ppl",
+    "checkpoint_path" : "model_checkpoints/11/GPT2_1e-4_subset",
+    "output_log": "log/GPT2/subset/1001-1101_unchanged_ppl.csv"
+}

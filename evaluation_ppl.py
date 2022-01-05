@@ -50,20 +50,6 @@ def evaluate_ppl(args, Model):
             writer = csv.writer(writefile)
             for batch in iter(loader):
                 with torch.no_grad():
-                    # outs = model.model.generate(
-                    #     batch["source_ids"].cuda(),
-                    #     attention_mask=batch["source_mask"].cuda(),
-                    #     use_cache=True,
-                    #     decoder_attention_mask=batch['target_mask'].cuda(),
-                    #     max_length=args.max_output_length,
-                    #     num_beams=2,
-                    #     early_stopping=True,
-                    # )
-                    # dec = model.ids_to_clean_text(outs)
-                    # texts = [tokenizer.decode(ids, clean_up_tokenization_spaces=False) for ids in batch['source_ids']]
-                    # targets = model.ids_to_clean_text(batch['target_ids'])
-                    # print("preds",dec)
-                    # print("targets",targets)
                     lm_labels = batch['target_ids']
                     if 't5' in args.model_name_or_path:
                         print(model.ids_to_clean_text(batch['source_ids']))
@@ -77,9 +63,9 @@ def evaluate_ppl(args, Model):
                     elif 'gpt2' in args.model_name_or_path:
                         # print(batch['source_nonprompt_mask'])
                         # print(batch["source_ids"])
-                        source_nonprompt_mask = batch['source_nonprompt_mask']
-                        lm_labels[source_nonprompt_mask == 0] = -100
-                        # lm_labels[lm_labels[:, :] == tokenizer.pad_token_id] = -100
+                        # source_nonprompt_mask = batch['source_nonprompt_mask']
+                        # lm_labels[source_nonprompt_mask == 0] = -100
+                        lm_labels[lm_labels[:, :] == tokenizer.pad_token_id] = -100
                         outputs = model.model(
                             input_ids=batch["source_ids"].cuda(),
                             attention_mask=batch["source_mask"].cuda(),
