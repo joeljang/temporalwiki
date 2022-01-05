@@ -148,8 +148,7 @@ if __name__ == '__main__':
         check_val_every_n_epoch= saving_epoch,
         logger = wandb_logger,
         callbacks = callbacks,
-        strategy=args.accelerator,
-        num_sanity_val_steps=-1
+        strategy=args.accelerator
     )
     if 't5' in args.model_name_or_path:
         Model = load_model('T5')

@@ -143,8 +143,8 @@ class CustomDataset(Dataset):
                 input_ = r.capitalize() + ' of ' + s + ' is' + ' <extra_id_0> .'  
                 target_ = example_batch['objective']
             else: 
-                input_ = example_batch['text']
-                target_ = example_batch['text']
+                input_ = example_batch['input']
+                target_ = example_batch['output']
         else:
             raise Exception('Model should either T5 or GPT2.')
         source = self.tokenizer.batch_encode_plus([str(input_)], max_length=self.input_length, 
