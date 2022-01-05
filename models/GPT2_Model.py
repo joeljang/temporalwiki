@@ -307,7 +307,7 @@ class GPT2(pl.LightningModule):
             denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps)
 
             steps_per_epoch = ( len_data // denomniator ) + 1
-            schedule_scale_factor = 8
+            schedule_scale_factor = 6
             total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * self.hparams.num_files * schedule_scale_factor
 
             print(f'total number of steps : {total_num_steps}')

@@ -2,13 +2,13 @@
     "input_length" : 512,
     "output_length" : 512,
     "num_train_epochs" : 1,
-    "output_dir" : "outputs/GPT2_large_11_3e-5_ckl",
-    "dataset" : "wikipedia_1011_gpt2",
+    "output_dir" : "outputs/GPT2_large_09_1e-4_subset_v2",
+    "dataset" : "wikipedia_0809_gpt2",
     "dataset_version" : "full",
     "train_batch_size" : 8,
     "learning_rate" : 1e-4,
     "model" : "gpt2-large",
-    "method": "kadapter",
+    "method": "baseline",
     "gradient_accumulation_steps" : 1,
     "ngpu" : 8,
     "num_workers" : 40,
@@ -18,9 +18,9 @@
     "CUDA_VISIBLE_DEVICES" : "0,1,2,3,4,5,6,7",
     "wandb_log": true,
     "wandb_project": "ever_changing",
-    "wandb_run_name" : "GPT2_large_11_3e-5_ckl",
+    "wandb_run_name" : "GPT2_large_09_1e-4_subset_v2",
     "mode" : "pretrain",
     "use_lr_scheduling" : true,
     "check_validation" : false,
-    "checkpoint_path" : "outputs/GPT2_large_10_3e-5_ckl_/epoch=0"
+    "checkpoint_path" : "outputs/GPT2_large_08_full.ckpt"
 }
