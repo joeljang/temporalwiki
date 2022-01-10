@@ -38,6 +38,8 @@ class CustomDataset(Dataset):
                 self.dataset = pd.read_csv('data/wikipedia_1011_subset.csv')
             elif self.args.dataset=='wikipedia_1011_gpt2':
                 self.dataset = pd.read_csv('data/wikipedia_1011_gpt2.csv')
+            elif self.args.dataset=='wikipedia_1112_gpt2':
+                self.dataset = pd.read_csv('data/wikipedia_1112_gpt2.csv')
             else:
                 raise Exception('The given dataset does not exist in data directory.')
         else:
