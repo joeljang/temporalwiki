@@ -31,6 +31,8 @@ class CustomDataset(Dataset):
                 self.dataset = pd.read_csv('data/wikipedia_1011_subset.csv')
             elif self.args.dataset=='wikipedia_1011_gpt2':
                 self.dataset = pd.read_csv('data/wikipedia_1011_gpt2.csv')
+            elif self.args.dataset=='wikipedia_1112_gpt2':
+                self.dataset = pd.read_csv('data/wikipedia_1112_gpt2.csv')
             else:
                 raise Exception('The given dataset does not exist in data directory.')
         else:
@@ -138,8 +140,8 @@ class CustomDataset(Dataset):
                 input_ = s + ' ' + r + ' <extra_id_0> .'
                 target_ = example_batch['objective']
             else: 
-                input_ = example_batch['text']
-                target_ = example_batch['text']
+                input_ = example_batch['input']
+                target_ = example_batch['output']
         else:
             raise Exception('Model should either T5 or GPT2.')
         source = self.tokenizer.batch_encode_plus([str(input_)], max_length=self.input_length, 
