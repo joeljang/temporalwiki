@@ -41,10 +41,11 @@ class GPT2(pl.LightningModule):
             self.model = GPT2LMHeadModel.from_pretrained(hparams.model_name_or_path)
         elif hparams.method=='kadapter':
             self.model = GPT2_Kadapter.from_pretrained(hparams.model_name_or_path)
-            self.freeze_params(self.model) 
-            for name, param in self.model.named_parameters():
-                if 'kadapter' in name or 'lm_head' in name:
-                    param.requires_grad = True
+            if hparams.mode != 'finetune':
+                self.freeze_params(self.model) 
+                for name, param in self.model.named_parameters():
+                    if 'kadapter' in name or 'lm_head' in name:
+                        param.requires_grad = True
         else:
             raise Exception(f'Currently not supporting {hparams.method}')
         self.tokenizer = GPT2Tokenizer.from_pretrained(hparams.model_name_or_path)

@@ -8,7 +8,7 @@
     "method": "baseline",
     "ngpu" : 1,
     "num_workers" : 40,
-    "CUDA_VISIBLE_DEVICES" : "2",
+    "CUDA_VISIBLE_DEVICES" : "3",
     "check_validation" : true,
     "mode" : "evaluate_ppl",
     "checkpoint_path" : "model_checkpoints/08/GPT2_large_08_full.ckpt",

@@ -18,14 +18,7 @@ class CustomDataset(Dataset):
         # dataset for continual training
         if self.type_path=='train':
             if self.args.mode == 'finetune':
-                if self.args.dataset == 'data/wikipedia_09_gpt2' or self.args.dataset == 'data/wikipedia_09': 
-                    total_line = 5000
-                    skip = sorted(random.sample(range(1,total_line+1),total_line-256))
-                    self.dataset = pd.read_csv('data/evaluation/lighttuning/08010901_lighttuning_5000.csv')
-                elif self.args.dataset == 'data/wikipedia_10_gpt2' or self.args.dataset == 'data/wikipedia_10': 
-                    self.dataset = pd.read_csv('data/evaluation/lighttuning/09011001_lighttuning_5000.csv')
-                if self.args.dataset == 'data/wikipedia_11_gpt2' or self.args.dataset == 'data/wikipedia_11': 
-                    self.dataset = pd.read_csv('data/evaluation/lighttuning/10011101_lighttuning_5000.csv')
+                self.dataset = pd.read_csv('data/evaluation/lighttuning/unchanged_light_tuning_500.csv')
             elif self.args.dataset=='wikipedia_0809':
                 self.dataset = pd.read_csv('data/wikipedia_0809_subset.csv')
             elif self.args.dataset=='wikipedia_0809_gpt2':
@@ -77,6 +70,14 @@ class CustomDataset(Dataset):
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
                 self.dataset = pd.concat([df1, df4])
+            elif self.args.dataset=='data/wikipedia_12_gpt2' or self.args.dataset=='data/wikipedia_12' or self.args.dataset=='wikipedia_1011' or self.args.dataset=='wikipedia_1011_gpt2':
+                df1 = pd.read_csv('data/evaluation/aligned/1101-1201_unchanged.csv')
+                df2 = pd.read_csv('data/evaluation/aligned/1101-1201_updated.csv')
+                df3 = pd.read_csv('data/evaluation/aligned/1101-1201_new.csv')
+                df4 = pd.read_csv('data/evaluation/IL.csv')
+                df1 = pd.concat([df1, df2])
+                df1 = pd.concat([df1, df3])
+                self.dataset = pd.concat([df1, df4])
             else:
                 self.dataset = pd.read_csv('data/evaluation/IL.csv')
         
@@ -101,19 +102,15 @@ class CustomDataset(Dataset):
                 o = example_batch['objective']
                 if self.args.mode == 'evaluate_ppl':
                     input_ = s + ' ' + r + ' ' + o
-                    # input_ = r.capitalize() + ' of ' + s + ' is ' + o + '.'
-                    input_nonprompt = ' ' + o 
+                    input_nonprompt =  ' ' + o 
                     target_ = s + ' ' + r + ' ' + o 
-                    # target_ = r.capitalize() + ' of ' + s + ' is ' + o + '.'
                 elif self.args.mode == 'evaluate':
                     input_ = s + ' ' + r
-                    # input_ = r.capitalize() + ' of ' + s + ' is' 
                     target_ = o
                 else: 
-                    # label_ = s + ' ' + r + ' ' + o 
                     target_ = s + ' ' + r + ' ' + o 
                     input_ = s + ' ' + r + ' ' + o 
-                    # input_nonprompt = o
+                    input_nonprompt = ' ' + o 
         elif self.type_path=='validation' and ('t5' in self.args.model_name_or_path):
             if self.args.mode == 'evaluate_ppl_corpus':
                 input_ = example_batch['input']
@@ -121,8 +118,7 @@ class CustomDataset(Dataset):
             else: 
                 s = example_batch['subject']
                 r = example_batch['relation']
-                input_ = r.capitalize() + ' of ' + s + ' is' + ' <extra_id_0> .' 
-                # input_ = s + ' ' + r + ' <extra_id_0> .' 
+                input_ = s + ' ' + r + ' <extra_id_0> .' 
                 target_ = example_batch['objective']
         elif 'gpt2' in self.args.model_name_or_path:
             if self.args.mode == 'finetune':
@@ -139,8 +135,7 @@ class CustomDataset(Dataset):
             if self.args.mode == 'finetune':
                 s = example_batch['subject']
                 r = example_batch['relation']
-                # input_ = s + ' ' + r + ' <extra_id_0> .'
-                input_ = r.capitalize() + ' of ' + s + ' is' + ' <extra_id_0> .'  
+                input_ = s + ' ' + r + ' <extra_id_0> .'
                 target_ = example_batch['objective']
             else: 
                 input_ = example_batch['text']
@@ -170,9 +165,11 @@ class CustomDataset(Dataset):
         target_mask = targets["attention_mask"].squeeze()
 
         if input_nonprompt is not None:
+            source_nonprompt_ids = input_nonprompt["input_ids"].squeeze()
             source_nonprompt_mask = input_nonprompt["attention_mask"].squeeze()
         else: 
             source_nonprompt_mask = -1
+            source_nonprompt_ids = -1
         
         if label is not None:
             label_ids = label["input_ids"].squeeze()
@@ -181,7 +178,7 @@ class CustomDataset(Dataset):
             label_ids = -1
             label_mask = -1
 
-        return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask, "source_nonprompt_mask": source_nonprompt_mask, "label_ids": label_ids, "label_mask": label_mask}
+        return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask, "source_nonprompt_ids" : source_nonprompt_ids, "source_nonprompt_mask": source_nonprompt_mask, "label_ids": label_ids, "label_mask": label_mask}
     
 class Pretrain_Chunks(Dataset):
     def __init__(self, dataset_name, tokenizer, input_length, output_length, args):

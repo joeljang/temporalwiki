@@ -11,12 +11,12 @@
     "gradient_accumulation_steps" : 1,
     "ngpu" : 1,
     "num_workers" : 40,
-    "CUDA_VISIBLE_DEVICES" : "2",
+    "CUDA_VISIBLE_DEVICES" : "0",
     "check_validation" : false,
-    "wandb_log": true,
+    "wandb_log": false,
     "wandb_project": "ever_changing_lighttune",
-    "wandb_run_name" : "GPT2_large_09_subset_light_1e-5_aligned",
+    "wandb_run_name" : "GPT2_large_09_subset_light_new",
     "mode" : "finetune",
-    "checkpoint_path" : "model_checkpoints/09/GPT2_1e-4_subset",
-    "output_log" : "log/GPT2/subset/0801-0901_light_1e-5.csv"
+    "checkpoint_path" : "model_checkpoints/new/09/GPT2_diff",
+    "output_dir" : "model_checkpoints/lighttune/09/GPT2_1e-4_subset"
 }

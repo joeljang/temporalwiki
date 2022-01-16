@@ -11,6 +11,6 @@
     "CUDA_VISIBLE_DEVICES" : "2",
     "check_validation" : true,
     "mode" : "evaluate_ppl",
-    "checkpoint_path" : "model_checkpoints/08/GPT2_large_08_full_lr3e-5.ckpt",
+    "checkpoint_path" : "model_checkpoints/new/08/GPT2_full",
     "output_log": "log/GPT2/initial/0801-0901_new_ppl.csv"
 }

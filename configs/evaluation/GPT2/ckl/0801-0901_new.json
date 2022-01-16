@@ -11,6 +11,6 @@
     "CUDA_VISIBLE_DEVICES" : "2",
     "check_validation" : true,
     "mode" : "evaluate_ppl",
-    "checkpoint_path" : "model_checkpoints/09/GPT2_1e-4_ckl",
+    "checkpoint_path" : "model_checkpoints/lighttune/09/GPT2_diffcl/epoch=0-step=155.ckpt",
     "output_log": "log/GPT2/ckl/0801-0901_new_ppl.csv"
 }

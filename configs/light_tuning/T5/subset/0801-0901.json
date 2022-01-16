@@ -11,12 +11,12 @@
     "gradient_accumulation_steps" : 1,
     "ngpu" : 1,
     "num_workers" : 40,
-    "CUDA_VISIBLE_DEVICES" : "6",
+    "CUDA_VISIBLE_DEVICES" : "0",
     "check_validation" : false,
     "wandb_log": true,
     "wandb_project": "ever_changing_lighttune",
-    "wandb_run_name" : "T5_large_09_subset_light_1e-3_prompt_500",
+    "wandb_run_name" : "T5_large_09_subset_light",
     "mode" : "finetune",
-    "checkpoint_path" : "model_checkpoints/09/T5_1e-4_subset",
-    "output_log" : "log/T5/subset/0801-0901_light_prompt_500.csv"
+    "checkpoint_path" : "model_checkpoints/09/T5_1e-5_subset",
+    "output_log" : "log/T5/subset/0801-0901_light_prediction.csv"
 }

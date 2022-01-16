@@ -69,7 +69,7 @@ def evaluate(args, Model):
                     batch["source_ids"].cuda(),
                     attention_mask=batch["source_mask"].cuda(),
                     use_cache=True,
-                    max_length=args.max_output_length + 10,
+                    max_length=args.max_output_length + 5,
                     num_beams=2,
                     early_stopping=True,
                 )
@@ -97,10 +97,10 @@ def evaluate(args, Model):
                 em = model.exact_match_score(predicted, ground_truth)  
                 f1_score += model._f1_score(predicted, ground_truth)
                 if em == 1:
-                    writer.writerow([lines, ground_truth, predicted, "CORRECT"])
+                    # writer.writerow([lines, ground_truth, predicted, "CORRECT"])
                     em_correct_num+=1
-                else: 
-                    writer.writerow([lines, ground_truth, predicted, "WRONG"])
+                # else: 
+                #     writer.writerow([lines, ground_truth, predicted, "WRONG"])
                 
     print(f'Number of total validation data: {total_cnt}')
     with open(args.output_log, 'a', newline='') as writefile:  

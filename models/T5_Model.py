@@ -183,7 +183,6 @@ class T5(pl.LightningModule):
         source = self.ids_to_clean_text(batch["source_ids"])
         print("preds", preds)
         print("targets", targets)
-            
         loss = self._step(batch)
 
         em_score = 0
@@ -197,14 +196,22 @@ class T5(pl.LightningModule):
         accuracy = torch.tensor(accuracy,dtype=torch.float32)
         f1_score = torch.tensor(f1_score, dtype=torch.float32)
 
-        if (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+        if (batch_idx < (10000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
             self.log('UnL_loss', loss, prog_bar=True, logger=True)
-        elif (batch_idx < (30000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('UnL_EM', em_score, prog_bar=True, logger=True)
+            self.log('UnL_F1', f1_score, prog_bar=True, logger=True)
+        elif (batch_idx < (10785//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
             self.log('UL_loss', loss, prog_bar=True, logger=True)
-        elif (batch_idx < (40000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('UL_EM', em_score, prog_bar=True, logger=True)
+            self.log('UL_F1', f1_score, prog_bar=True, logger=True)
+        elif (batch_idx < (12329//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
             self.log('NL_loss', loss, prog_bar=True, logger=True)
+            self.log('NL_EM', em_score, prog_bar=True, logger=True)
+            self.log('NL_F1', f1_score, prog_bar=True, logger=True)
         else:
             self.log('IL_loss', loss, prog_bar=True, logger=True)
+            self.log('IL_EM', em_score, prog_bar=True, logger=True)
+            self.log('IL_F1', f1_score, prog_bar=True, logger=True)
 
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
