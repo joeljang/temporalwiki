@@ -2,7 +2,7 @@
     "input_length" : 25,
     "output_length" : 25,
     "num_train_epochs" : 1,
-    "dataset" : "data/wikipedia_10_gpt2",
+    "dataset" : "unchanged_light_tuning_500",
     "dataset_version" : "full",
     "train_batch_size" : 32,
     "learning_rate" : 1e-5,
@@ -11,12 +11,12 @@
     "gradient_accumulation_steps" : 1,
     "ngpu" : 1,
     "num_workers" : 40,
-    "CUDA_VISIBLE_DEVICES" : "1",
+    "CUDA_VISIBLE_DEVICES" : "0",
     "check_validation" : false,
     "wandb_log": false,
     "wandb_project": "ever_changing_lighttune",
-    "wandb_run_name" : "GPT2_large_10_subset_light_new",
+    "wandb_run_name" : "GPT2_large_09_subset_light_unchanged",
     "mode" : "finetune",
-    "checkpoint_path" : "model_checkpoints/new/10/GPT2_diff",
-    "output_dir" : "model_checkpoints/lighttune/10/GPT2_1e-4_subset"
+    "checkpoint_path" : "model_checkpoints/09/GPT2_full",
+    "output_dir" : "model_checkpoints/lighttune/09/GPT2_1e-4_full"
 }

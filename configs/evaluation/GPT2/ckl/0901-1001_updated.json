@@ -11,6 +11,6 @@
     "CUDA_VISIBLE_DEVICES" : "2",
     "check_validation" : true,
     "mode" : "evaluate_ppl",
-    "checkpoint_path" : "model_checkpoints/new/10/GPT2_diffcl",
+    "checkpoint_path" : "outputs/10/GPT2_diffcl",
     "output_log": "log/GPT2/ckl/0901-1001_updated_ppl.csv"
 }

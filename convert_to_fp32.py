@@ -2,6 +2,7 @@ from pytorch_lightning.utilities.deepspeed import convert_zero_checkpoint_to_fp3
 import os
 # lightning deepspeed has saved a directory instead of a file
 
+##### Please modify this part #####
 checkpoint_dir = 'outputs/GPT2_large_11_1e-4_diffcl_v3'
 output_path = 'outputs/GPT2_large_11_1e-4_diffcl_v3_/'
 

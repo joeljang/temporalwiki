@@ -17,6 +17,20 @@ pip3 install torch torchvision torchaudio
 pip3 install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
 ```
 
+Finally, some directory generation.
+
+    everchange-dev
+    ├── outputs
+    │   ├── lighttune
+    │   ├── initial
+    ├── data
+    ├── log
+    │   ├── GPT
+    │   |   ├── brute_force
+    │   |   ├── ckl
+    │   |   ├── initial
+    │   |   ├── subset
+
 ### 2. Download the data used for the experiments.
 To download Full Wikipedia data for 2021.08-2021.12:
 ```
@@ -35,10 +49,12 @@ wget https://continual.blob.core.windows.net/elm/TWiki_Probes.zip
 
 Download the data to ```data``` and unzip it
 
+### 3. Run the experiment and configuration components
 This is an example of performing continual pretraining on **TWiki_Diffsets** (main experiment) with **CKL**
 ```
 python run.py --config configs/baseline_gpt2_s.json
 ```
+
 This is an example of performing light-tuning pretrained model
 ```
 python run.py --config configs/baseline_gpt2_s.json
@@ -48,9 +64,10 @@ This is an example of getting the **TWiki_Probes New** zero-shot evaluation of c
 python run.py --config configs/evaluation/GPT2/subset/0801-0901_new.json
 ```
 
+After training the model, run ```convert_to_fp32.py``` to convert output to checkpoint file.
+
+For components in configuration file, please refer to the [Continual-Knowledge-Learning](https://github.com/joeljang/continual-knowledge-learning)
+
 ## Generation of Datasets
 
-For Generation of Wikipedia_Full, TWiki_Diffsets, TWiki_Probes, please refer to the link below.
-```
-https://github.com/CHLee0801/TemporalWikiDatasets
-```
+For Generation of Wikipedia_Full, TWiki_Diffsets, TWiki_Probes, please refer to the [TemporalWikiDatasets](https://github.com/CHLee0801/TemporalWikiDatasets)
