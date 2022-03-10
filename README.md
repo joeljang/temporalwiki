@@ -49,6 +49,12 @@ wget https://continual.blob.core.windows.net/elm/TWiki_Probes.zip
 
 Download the data to ```data``` and unzip it
 
+To download the Initial GPT2 model trained on 08.2021 Wikipedia dump for 4 epochs:
+```
+wget https://continual.blob.core.windows.net/elm/model_checkpoints/08/GPT2_large_08_full.ckpt
+```
+
+
 ### 3. Run the experiment and configuration components
 This is an example of performing continual pretraining on **TWiki_Diffsets** (main experiment) with **CKL**
 ```
