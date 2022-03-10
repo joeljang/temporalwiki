@@ -43,7 +43,7 @@ class GPT2(pl.LightningModule):
 
         self.model = GPT2LMHeadModel.from_pretrained(hparams.model_name_or_path)
         self.save_hyperparameters(hparams)      
-        if hparams.method=='baseline':
+        if hparams.method=='baseline' or hparams.method=='mixreview':
             self.model = GPT2LMHeadModel.from_pretrained(hparams.model_name_or_path)
         elif hparams.method=='kadapter':
             self.model = GPT2_Kadapter.from_pretrained(hparams.model_name_or_path)

@@ -18,7 +18,7 @@ class CustomDataset(Dataset):
         # dataset for continual training
         if self.type_path=='train':
             if self.args.mode == 'finetune':
-                self.dataset = pd.read_csv('data/TWiki_Probes/evaluation/lighttuning/'+self.args.dataset+'.csv')
+                self.dataset = pd.read_csv('data/TWiki_Probes/lighttuning/'+self.args.dataset+'.csv')
             elif self.args.dataset=='wikipedia_0809':
                 self.dataset = pd.read_csv('data/TWiki_Diffsets/wikipedia_0809_subset.csv')
             elif self.args.dataset=='wikipedia_0809_gpt2':
@@ -36,9 +36,9 @@ class CustomDataset(Dataset):
             else:
                 raise Exception('The given dataset does not exist in data directory.')
         elif type_path =='pretrain':
-            total_line = 8021155
+            total_line = 4000000
             skip = sorted(random.sample(range(1,total_line+1),total_line-length))
-            self.dataset = pd.read_csv('data/wikipedia_pretrain_full.csv', usecols=['text'], skiprows=skip)
+            self.dataset = pd.read_csv('data/Wikipedia_Full/wikipedia_08_gpt2/part1.csv', usecols=['text'], skiprows=skip)
         else:
             # evaluation dataset
             if self.args.check_validation_only:
@@ -46,46 +46,46 @@ class CustomDataset(Dataset):
                     self.dataset = pd.read_csv('data/perplexity/'+self.args.dataset+'.csv')
                 else: 
                     if self.args.dataset == 'IL':
-                        self.dataset = pd.read_csv('data/evaluation/IL.csv')
+                        self.dataset = pd.read_csv('data/IL.csv')
                     else: 
-                        self.dataset = pd.read_csv('data/evaluation/aligned/'+ self.args.dataset + '.csv')
+                        self.dataset = pd.read_csv('data/aligned/'+ self.args.dataset + '.csv')
             # validation dataset
             elif self.args.dataset=='IL':
-                self.dataset = pd.read_csv('data/TWiki_Probes/evaluation/IL.csv')
+                self.dataset = pd.read_csv('data/TWiki_Probes/IL.csv')
             elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809' or self.args.dataset=='data/wikipedia_09_gpt2' or self.args.dataset=='wikipedia_0809_gpt2':
-                df1 = pd.read_csv('data/TWiki_Probes/evaluation/aligned/0801-0901_unchanged.csv')
-                df2 = pd.read_csv('data/TWiki_Probes/evaluation/aligned/0801-0901_updated.csv')
-                df3 = pd.read_csv('data/TWiki_Probes/evaluation/aligned/0801-0901_new.csv')
-                df4 = pd.read_csv('data/TWiki_Probes/evaluation/IL.csv')
+                df1 = pd.read_csv('data/TWiki_Probes/aligned/0801-0901_unchanged.csv')
+                df2 = pd.read_csv('data/TWiki_Probes/aligned/0801-0901_updated.csv')
+                df3 = pd.read_csv('data/TWiki_Probes/aligned/0801-0901_new.csv')
+                df4 = pd.read_csv('data/TWiki_Probes/IL.csv')
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
                 self.dataset = pd.concat([df1, df4])
             elif self.args.dataset=='data/wikipedia_10_gpt2' or self.args.dataset=='data/wikipedia_10' or self.args.dataset=='wikipedia_0910' or self.args.dataset=='wikipedia_0910_gpt2':
-                df1 = pd.read_csv('data/TWiki_Probes/evaluation/aligned/0901-1001_unchanged.csv')
-                df2 = pd.read_csv('data/TWiki_Probes/evaluation/aligned/0901-1001_updated.csv')
-                df3 = pd.read_csv('data/TWiki_Probes/evaluation/aligned/0901-1001_new.csv')
-                df4 = pd.read_csv('data/TWiki_Probes/evaluation/IL.csv')
+                df1 = pd.read_csv('data/TWiki_Probes/aligned/0901-1001_unchanged.csv')
+                df2 = pd.read_csv('data/TWiki_Probes/aligned/0901-1001_updated.csv')
+                df3 = pd.read_csv('data/TWiki_Probes/aligned/0901-1001_new.csv')
+                df4 = pd.read_csv('data/TWiki_Probes/IL.csv')
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
                 self.dataset = pd.concat([df1, df4])
             elif self.args.dataset=='data/wikipedia_11_gpt2' or self.args.dataset=='data/wikipedia_11' or self.args.dataset=='wikipedia_1011' or self.args.dataset=='wikipedia_1011_gpt2':
-                df1 = pd.read_csv('data/TWiki_Probes/evaluation/aligned/1001-1101_unchanged.csv')
-                df2 = pd.read_csv('data/TWiki_Probes/evaluation/aligned/1001-1101_updated.csv')
-                df3 = pd.read_csv('data/TWiki_Probes/evaluation/aligned/1001-1101_new.csv')
-                df4 = pd.read_csv('data/TWiki_Probes/evaluation/IL.csv')
+                df1 = pd.read_csv('data/TWiki_Probes/aligned/1001-1101_unchanged.csv')
+                df2 = pd.read_csv('data/TWiki_Probes/aligned/1001-1101_updated.csv')
+                df3 = pd.read_csv('data/TWiki_Probes/aligned/1001-1101_new.csv')
+                df4 = pd.read_csv('data/TWiki_Probes/IL.csv')
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
                 self.dataset = pd.concat([df1, df4])
             elif self.args.dataset=='data/wikipedia_12_gpt2' or self.args.dataset=='data/wikipedia_12' or self.args.dataset=='wikipedia_1011' or self.args.dataset=='wikipedia_1011_gpt2':
-                df1 = pd.read_csv('data/TWiki_Probes/evaluation/aligned/1101-1201_unchanged.csv')
-                df2 = pd.read_csv('data/TWiki_Probes/evaluation/aligned/1101-1201_updated.csv')
-                df3 = pd.read_csv('data/TWiki_Probes/evaluation/aligned/1101-1201_new.csv')
-                df4 = pd.read_csv('data/TWiki_Probes/evaluation/IL.csv')
+                df1 = pd.read_csv('data/TWiki_Probes/aligned/1101-1201_unchanged.csv')
+                df2 = pd.read_csv('data/TWiki_Probes/aligned/1101-1201_updated.csv')
+                df3 = pd.read_csv('data/TWiki_Probes/aligned/1101-1201_new.csv')
+                df4 = pd.read_csv('data/TWiki_Probes/IL.csv')
                 df1 = pd.concat([df1, df2])
                 df1 = pd.concat([df1, df3])
                 self.dataset = pd.concat([df1, df4])
             else:
-                self.dataset = pd.read_csv('data/TWiki_Probes/evaluation/IL.csv')
+                self.dataset = pd.read_csv('data/TWiki_Probes/IL.csv')
         
         print(f'Length of dataset retrieving is.. {len(self.dataset)}')
         self.input_length = input_length
