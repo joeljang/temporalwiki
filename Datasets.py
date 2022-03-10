@@ -35,6 +35,10 @@ class CustomDataset(Dataset):
                 self.dataset = pd.read_csv('data/TWiki_Diffsets/wikipedia_1112_gpt2.csv')
             else:
                 raise Exception('The given dataset does not exist in data directory.')
+        elif type_path =='pretrain':
+            total_line = 8021155
+            skip = sorted(random.sample(range(1,total_line+1),total_line-length))
+            self.dataset = pd.read_csv('data/wikipedia_pretrain_full.csv', usecols=['text'], skiprows=skip)
         else:
             # evaluation dataset
             if self.args.check_validation_only:

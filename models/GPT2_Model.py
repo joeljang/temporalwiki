@@ -20,7 +20,9 @@ import math
 import os
 import csv
 
-from models.GPT2_Model_CL import GPT2LMHeadModel as GPT2_Kadapter
+from models.GPT2_Model_Kadapter import GPT2LMHeadModel as GPT2_Kadapter
+from models.GPT2_Model_LoRA import GPT2LMHeadModel as GPT2_Lora
+from models.RecAdam import RecAdam
 
 class GPT2(pl.LightningModule):
     def __init__(self, hparams):
@@ -34,6 +36,10 @@ class GPT2(pl.LightningModule):
         self.updated = 0
         self.new = 0
         self.invariant = 0
+        
+        self.mix_ratio = 4
+        self.mix_decay = 0.7
+        self.epoch = 0
 
         self.model = GPT2LMHeadModel.from_pretrained(hparams.model_name_or_path)
         self.save_hyperparameters(hparams)      
@@ -46,6 +52,17 @@ class GPT2(pl.LightningModule):
                 for name, param in self.model.named_parameters():
                     if 'kadapter' in name or 'lm_head' in name:
                         param.requires_grad = True
+        elif hparams.method=='lora':
+            self.model = GPT2_Lora.from_pretrained(hparams.model_name_or_path)
+            if hparams.mode != 'finetune':
+                self.freeze_params(self.model) 
+                for name, param in self.model.named_parameters():
+                    if 'lora' in name or 'lm_head' in name:
+                        param.requires_grad = True
+        elif hparams.method=='recadam':
+            self.model = GPT2LMHeadModel.from_pretrained(hparams.model_name_or_path)
+            self.pretrained_model = GPT2LMHeadModel.from_pretrained(hparams.model_name_or_path)
+            self.freeze_params(self.pretrained_model) #Freezing pretrained model
         else:
             raise Exception(f'Currently not supporting {hparams.method}')
         self.tokenizer = GPT2Tokenizer.from_pretrained(hparams.model_name_or_path)
@@ -129,12 +146,8 @@ class GPT2(pl.LightningModule):
         return em_score*100, f1_score*100 
 
     def get_dataset(self, tokenizer, type_path, args, length=None):
-        if type_path=='validation':
-            dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
-                        output_length=args.max_output_length, args=args, length=length)
-        else:
-            dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
-                        output_length=args.max_output_length, args=args, length=length)
+        dataset = CustomDataset(tokenizer=tokenizer, type_path=type_path, input_length=args.max_input_length, 
+                    output_length=args.max_output_length, args=args, length=length)
         return dataset
 
     def freeze_params(self, model):
@@ -275,30 +288,81 @@ class GPT2(pl.LightningModule):
                 self.log('global_epoch', self.global_epoch, prog_bar=True, logger=True)
                 self.dataset_index=0
             self.train_dataloader()
+        if self.hparams.method=='mixreview':
+            train_set = self.train_dataloader().dataset
+        self.epoch+=1
 
     def validation_step(self, batch, batch_idx):
         return self._generative_step(batch, batch_idx)
 
     def configure_optimizers(self, train_len=None):
         "Prepare optimizer and schedule (linear warmup and decay)"
-        model = self.model
-        
-        no_decay = ["bias", "LayerNorm.weight"]
-        optimizer_grouped_parameters = [
-            {
-                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-                "weight_decay": self.hparams.weight_decay,
-            },
-            {
-                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-                "weight_decay": 0.0,
-            },
-        ]
+        if self.hparams.method=='recadam':
+            no_decay = ["bias", "LayerNorm.weight"]
+            model_type = 'gpt2'
+            recadam_anneal_w = 1.0
+            recadam_anneal_fun = 'sigmoid'
+            recadam_anneal_k = 0.5
+            recadam_anneal_t0 = 250
+            recadam_pretrain_cof = 5000.0
+            new_model = self.model
+            pretrained_model = self.pretrained_model
+            optimizer_grouped_parameters = [
+                {
+                    "params": [p for n, p in new_model.named_parameters() if
+                            not any(nd in n for nd in no_decay) and model_type in n],
+                    "weight_decay": self.hparams.weight_decay,
+                    "anneal_w": recadam_anneal_w,
+                    "pretrain_params": [p_p for p_n, p_p in pretrained_model.named_parameters() if
+                                        not any(nd in p_n for nd in no_decay) and model_type in p_n]
+                },
+                {
+                    "params": [p for n, p in new_model.named_parameters() if
+                            not any(nd in n for nd in no_decay) and model_type not in n],
+                    "weight_decay": self.hparams.weight_decay,
+                    "anneal_w": 0.0,
+                    "pretrain_params": [p_p for p_n, p_p in pretrained_model.named_parameters() if
+                                        not any(nd in p_n for nd in no_decay) and model_type not in p_n]
+                },
+                {
+                    "params": [p for n, p in new_model.named_parameters() if
+                            any(nd in n for nd in no_decay) and model_type in n],
+                    "weight_decay": 0.0,
+                    "anneal_w": recadam_anneal_w,
+                    "pretrain_params": [p_p for p_n, p_p in pretrained_model.named_parameters() if
+                                        any(nd in p_n for nd in no_decay) and model_type in p_n]
+                },
+                {
+                    "params": [p for n, p in new_model.named_parameters() if
+                            any(nd in n for nd in no_decay) and model_type not in n],
+                    "weight_decay": 0.0,
+                    "anneal_w": 0.0,
+                    "pretrain_params": [p_p for p_n, p_p in pretrained_model.named_parameters() if
+                                        any(nd in p_n for nd in no_decay) and model_type not in p_n]
+                }
+            ]
+            optimizer = RecAdam(optimizer_grouped_parameters, lr=self.hparams.learning_rate, eps=self.hparams.adam_epsilon,
+                                anneal_fun=recadam_anneal_fun, anneal_k=recadam_anneal_k,
+                                anneal_t0=recadam_anneal_t0, pretrain_cof=recadam_pretrain_cof)
+        else:
+            model = self.model
+            
+            no_decay = ["bias", "LayerNorm.weight"]
+            optimizer_grouped_parameters = [
+                {
+                    "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+                    "weight_decay": self.hparams.weight_decay,
+                },
+                {
+                    "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+                    "weight_decay": 0.0,
+                },
+            ]
 
-        if self.hparams.accelerator is not None:
-            optimizer = deepspeed.ops.adam.FusedAdam(optimizer_grouped_parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
-        else: 
-            optimizer = Adafactor(optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False)
+            if self.hparams.accelerator is not None:
+                optimizer = deepspeed.ops.adam.FusedAdam(optimizer_grouped_parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+            else: 
+                optimizer = Adafactor(optimizer_grouped_parameters, lr=self.hparams.learning_rate, scale_parameter=False, relative_step=False)
 
         if self.hparams.use_lr_scheduling:
             if self.hparams.len_data==None:
@@ -322,8 +386,17 @@ class GPT2(pl.LightningModule):
             train_dataset = Pretrain_Chunks(dataset_name=self.dataset_lst[self.dataset_index],tokenizer=self.tokenizer, input_length=self.hparams.max_input_length, output_length=self.hparams.max_output_length, args=self.hparams)
         else:
             train_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="train", args=self.hparams)
-        sampler = RandomSampler(train_dataset)
-        dataloader = DataLoader(train_dataset, sampler=sampler,  batch_size=self.hparams.train_batch_size, drop_last=True, num_workers=self.hparams.num_workers)
+        if self.hparams.method=='mixreview':
+            mix_len = int(len(train_dataset) * self.mix_ratio * (self.mix_decay ** self.epoch))
+            pretrain_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="pretrain", args=self.hparams, length=mix_len)
+            mixed_dataset = ConcatDataset([train_dataset,pretrain_dataset])
+            print("mix len is ", mix_len)
+            sampler = RandomSampler(mixed_dataset)
+            dataloader = DataLoader(mixed_dataset, sampler = sampler, batch_size=self.hparams.train_batch_size, drop_last=True, num_workers=self.hparams.num_workers)
+            print("dataset length is ", len(dataloader.dataset))
+        else:
+            sampler = RandomSampler(train_dataset)
+            dataloader = DataLoader(train_dataset, sampler=sampler,  batch_size=self.hparams.train_batch_size, drop_last=True, num_workers=self.hparams.num_workers)
         return dataloader
 
     def val_dataloader(self):
