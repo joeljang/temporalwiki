@@ -36,6 +36,8 @@ class GPT2(pl.LightningModule):
         self.updated = 0
         self.new = 0
         self.invariant = 0
+        self.validation = 0
+        self.validation_loss = 0
         
         self.mix_ratio = 1
         self.mix_decay = 0.7
@@ -183,11 +185,7 @@ class GPT2(pl.LightningModule):
 
     def valid_step(self, batch):
         lm_labels = batch["label_ids"].clone().detach()
-        source_nonprompt_mask = batch['source_nonprompt_mask']
-        # print(source_nonprompt_mask)
         lm_labels[source_nonprompt_mask == 0] = -100
-        # lm_labels[lm_labels[:, :] == self.tokenizer.pad_token_id] = -100
-        # print(lm_labels, batch["label_ids"])
         outputs = self(
             input_ids=batch["label_ids"],
             attention_mask=batch["label_mask"],
@@ -204,39 +202,47 @@ class GPT2(pl.LightningModule):
             generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
         )
         return self.lmap(str.strip, gen_text)
+
+    def _generative_step_finetune(self, batch, batch_idx):
+        loss = self.valid_step(batch)
+        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.validation +=1
+        self.validation_loss += loss
+        average_loss = self.validation_loss / self.validation 
+        ppl = torch.exp(average_loss)
+        self.log('validation_ppl', ppl, prog_bar=True, logger=True)
+        
+        source = self.ids_to_clean_text(batch["source_ids"])
+        generated_ids = self.model.generate(
+            batch["source_ids"],
+            attention_mask=batch["source_mask"],
+            use_cache=True,
+            max_length=self.hparams.max_input_length + 5,
+            num_beams=2,
+            early_stopping=True
+        )
+        targets = self.ids_to_clean_text(batch["target_ids"])
+
+        generated_ids = torch.transpose(torch.transpose(generated_ids,0,1)[self.hparams.max_input_length:],0,1)
+        preds = self.ids_to_clean_text(generated_ids)
+        clean_preds = []
+        for text in preds:
+            if "." in text:
+                clean_preds.append(text[:text.find(".")+1])
+            else: 
+                clean_preds.append(text)
+        print("clean_preds",clean_preds)
+        print("targets",targets)
+
+        em_score, f1_score = self.calculate_scores(clean_preds, targets)
+        print(em_score, f1_score, ppl)
+        self.log('EM score', em_score, prog_bar=True, logger=True)
+        self.log('F1 score', f1_score, prog_bar=True, logger=True)
     
      
     def _generative_step(self, batch, batch_idx):
         loss = self._step(batch)
         self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-
-        # source = self.ids_to_clean_text(batch["source_ids"])
-        # generated_ids = self.model.generate(
-        #     batch["source_ids"],
-        #     attention_mask=batch["source_mask"],
-        #     use_cache=True,
-        #     max_length=self.hparams.max_input_length + 3,
-        #     num_beams=2,
-        #     early_stopping=True
-        # )
-        # generated_ids = torch.transpose(torch.transpose(generated_ids,0,1)[self.hparams.max_input_length:],0,1)
-        # preds = self.ids_to_clean_text(generated_ids)
-        # clean_preds = []
-        # for text in preds:
-        #     if "." in text:
-        #         clean_preds.append(text[:text.find(".")+1])
-        #     else: 
-        #         clean_preds.append(text)
-        # print("clean_preds",clean_preds)
-        # targets = self.ids_to_clean_text(batch["target_ids"])
-        # print("targets",targets)
-
-        # if self.hparams.mode == 'finetune':
-        #     with open(self.hparams.output_log, 'a', newline='') as writefile: 
-        #         writer = csv.writer(writefile)
-        #         for i in range(len(targets)):
-        #             writer.writerow([source[i], clean_preds[i], targets[i], self.exact_match_score(clean_preds[i], targets[i])])
-        # em_score, f1_score = self.calculate_scores(clean_preds, targets)
 
         if (batch_idx < (10000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
             self.unchanged +=1
@@ -245,8 +251,6 @@ class GPT2(pl.LightningModule):
             ppl = torch.exp(average_loss)
             self.log('UnL_ppl', ppl, prog_bar=True, logger=True)
             print('UnL_ppl', ppl)
-            # self.log('UnL_EM', em_score, prog_bar=True, logger=True)
-            # self.log('UnL_F1', f1_score, prog_bar=True, logger=True)
         elif (batch_idx < (15000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
             self.updated +=1
             self.updated_loss += loss
@@ -254,8 +258,6 @@ class GPT2(pl.LightningModule):
             ppl = torch.exp(average_loss)
             self.log('UL_ppl', ppl, prog_bar=True, logger=True)
             print('UL_ppl', ppl)
-            # self.log('UL_EM', em_score, prog_bar=True, logger=True)
-            # self.log('UL_F1', f1_score, prog_bar=True, logger=True)
         elif (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
             self.new +=1
             self.new_loss += loss
@@ -263,8 +265,6 @@ class GPT2(pl.LightningModule):
             ppl = torch.exp(average_loss)
             self.log('NL_ppl', ppl, prog_bar=True, logger=True)
             print('NL_ppl', ppl)
-            # self.log('NL_EM', em_score, prog_bar=True, logger=True)
-            # self.log('NL_F1', f1_score, prog_bar=True, logger=True)
         else:
             self.invariant +=1
             self.invariant_loss += loss
@@ -272,9 +272,7 @@ class GPT2(pl.LightningModule):
             ppl = torch.exp(average_loss)
             self.log('IL_ppl', ppl, prog_bar=True, logger=True)
             print('IL_ppl', ppl)
-            # self.log('IL_EM', em_score, prog_bar=True, logger=True)
-            # self.log('IL_F1', f1_score, prog_bar=True, logger=True)
-        
+
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
         self.log("loss", loss)
@@ -293,6 +291,8 @@ class GPT2(pl.LightningModule):
         self.epoch+=1
 
     def validation_step(self, batch, batch_idx):
+        if self.hparams.mode == 'finetune':
+            return self._generative_step_finetune(batch, batch_idx)
         return self._generative_step(batch, batch_idx)
 
     def configure_optimizers(self, train_len=None):

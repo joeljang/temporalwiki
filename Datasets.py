@@ -18,7 +18,11 @@ class CustomDataset(Dataset):
         # dataset for continual training
         if self.type_path=='train':
             if self.args.mode == 'finetune':
-                self.dataset = pd.read_csv('data/TWiki_Probes/lighttuning/'+self.args.dataset+'.csv')
+                if 'unchanged' in self.args.dataset:
+                    self.dataset = pd.read_csv('data/evaluation/lighttuning/lighttuning_unchanged_500.csv')
+                else: 
+                    self.dataset = pd.read_csv('data/evaluation/lighttuning/lighttuning_changed_500.csv')
+                # self.dataset = pd.read_csv('data/TWiki_Probes/lighttuning/'+self.args.dataset+'.csv')
             elif self.args.dataset=='wikipedia_0809':
                 self.dataset = pd.read_csv('data/TWiki_Diffsets/wikipedia_0809_subset.csv')
             elif self.args.dataset=='wikipedia_0809_gpt2':
@@ -48,8 +52,10 @@ class CustomDataset(Dataset):
                     if self.args.dataset == 'IL':
                         self.dataset = pd.read_csv('data/IL.csv')
                     else: 
-                        self.dataset = pd.read_csv('data/aligned/'+ self.args.dataset + '.csv')
+                        self.dataset = pd.read_csv('data/evaluation/final/'+ self.args.dataset + '.csv')
             # validation dataset
+            elif self.args.mode == 'finetune':
+                self.dataset = pd.read_csv('data/evaluation/final/'+ self.args.dataset + '.csv')
             elif self.args.dataset=='IL':
                 self.dataset = pd.read_csv('data/TWiki_Probes/IL.csv')
             elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809' or self.args.dataset=='data/wikipedia_09_gpt2' or self.args.dataset=='wikipedia_0809_gpt2':
@@ -98,7 +104,7 @@ class CustomDataset(Dataset):
         # continual pretraining
         input_nonprompt = None
         label_ = None
-        if self.type_path=='validation' and ('gpt2' in self.args.model_name_or_path):
+        if self.type_path=='validation':
             if self.args.mode == 'evaluate_ppl_corpus':
                 input_ = example_batch['text']
                 target_ = example_batch['text']
@@ -113,20 +119,15 @@ class CustomDataset(Dataset):
                 elif self.args.mode == 'evaluate':
                     input_ = s + ' ' + r
                     target_ = o
+                elif self.args.mode == 'finetune':
+                    label_ = s + ' ' + r + ' ' + o 
+                    input_ = s + ' ' + r 
+                    target_ = o
                 else: 
                     target_ = s + ' ' + r + ' ' + o 
                     input_ = s + ' ' + r + ' ' + o 
                     input_nonprompt = ' ' + o 
-        elif self.type_path=='validation' and ('t5' in self.args.model_name_or_path):
-            if self.args.mode == 'evaluate_ppl_corpus':
-                input_ = example_batch['input']
-                target_ = example_batch['output']
-            else: 
-                s = example_batch['subject']
-                r = example_batch['relation']
-                input_ = s + ' ' + r + ' <extra_id_0> .' 
-                target_ = example_batch['objective']
-        elif 'gpt2' in self.args.model_name_or_path:
+        else: 
             if self.args.mode == 'finetune':
                 s = example_batch['subject']
                 r = example_batch['relation']
@@ -137,17 +138,6 @@ class CustomDataset(Dataset):
             else: 
                 input_ = example_batch['text']
                 target_ = example_batch['text']
-        elif 't5' in self.args.model_name_or_path:
-            if self.args.mode == 'finetune':
-                s = example_batch['subject']
-                r = example_batch['relation']
-                input_ = s + ' ' + r + ' <extra_id_0> .'
-                target_ = example_batch['objective']
-            else: 
-                input_ = example_batch['input']
-                target_ = example_batch['output']
-        else:
-            raise Exception('Model should either T5 or GPT2.')
         source = self.tokenizer.batch_encode_plus([str(input_)], max_length=self.input_length, 
                                                     padding='max_length', truncation=True, return_tensors="pt")
         targets = self.tokenizer.batch_encode_plus([str(target_)], max_length=self.output_length, 
