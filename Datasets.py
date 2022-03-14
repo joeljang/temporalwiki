@@ -36,7 +36,7 @@ class CustomDataset(Dataset):
             else:
                 raise Exception('The given dataset does not exist in data directory.')
         elif type_path =='pretrain':
-            total_line = 4000000
+            total_line = 4378268
             skip = sorted(random.sample(range(1,total_line+1),total_line-length))
             self.dataset = pd.read_csv('data/Wikipedia_Full/wikipedia_08_gpt2/part1.csv', usecols=['text'], skiprows=skip)
         else:

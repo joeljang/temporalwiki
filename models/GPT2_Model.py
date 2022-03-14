@@ -37,7 +37,7 @@ class GPT2(pl.LightningModule):
         self.new = 0
         self.invariant = 0
         
-        self.mix_ratio = 4
+        self.mix_ratio = 1
         self.mix_decay = 0.7
         self.epoch = 0
 
@@ -387,7 +387,8 @@ class GPT2(pl.LightningModule):
         else:
             train_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="train", args=self.hparams)
         if self.hparams.method=='mixreview':
-            mix_len = int(len(train_dataset) * self.mix_ratio * (self.mix_decay ** self.epoch))
+            #mix_len = int(len(train_dataset) * self.mix_ratio * (self.mix_decay ** self.epoch))
+            mix_len = int(len(train_dataset))
             pretrain_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="pretrain", args=self.hparams, length=mix_len)
             mixed_dataset = ConcatDataset([train_dataset,pretrain_dataset])
             print("mix len is ", mix_len)
