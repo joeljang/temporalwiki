@@ -63,7 +63,7 @@ python run.py --config configs/baseline_gpt2_s.json
 
 This is an example of performing light-tuning pretrained model
 ```
-python run.py --config configs/baseline_gpt2_s.json
+python run.py --config configs/light_tuning/GPT2/subset/0801-0901_new.json
 ```
 This is an example of getting the **TWiki_Probes New** zero-shot evaluation of continually pretrained **CKL**
 ```
