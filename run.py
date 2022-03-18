@@ -9,12 +9,11 @@ import numpy as np
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
-# from T5_Model import T5
-# from GPT2_Model import GPT2
 from transformers import T5Tokenizer, GPT2Tokenizer
 from models import load_model
 
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.plugins import DeepSpeedPlugin
 
 def set_seed(seed):
     random.seed(seed)
@@ -78,6 +77,10 @@ if __name__ == '__main__':
         wandb_logger = WandbLogger(project=hparam.wandb_project, name=hparam.wandb_run_name, entity="lklab_kaist")
     else:
         wandb_logger = None
+    
+    #Change accelerator to DeepSpeedPlugin
+    if hparam.accelerator=='deepspeed_stage_2':
+        hparam.accelerator = DeepSpeedPlugin(stage=2, load_full_weights=True)
         
     #Setting configurations
     args_dict = dict(
@@ -116,8 +119,9 @@ if __name__ == '__main__':
     args = argparse.Namespace(**args_dict)
 
     #Setting different val & checkpoint saving config for mode
-    if args.mode=='pretrain_brute':
-        saving_epoch = (args.num_files//2)
+    if args.mode=='pretrain_chunks':
+        #saving_epoch = int(args.num_files // 3)
+        saving_epoch = 1
     else:
         saving_epoch = 1
 

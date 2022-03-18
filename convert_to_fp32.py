@@ -3,8 +3,8 @@ import os
 # lightning deepspeed has saved a directory instead of a file
 
 ##### Please modify this part #####
-checkpoint_dir = 'outputs/GPT2_large_09_1e-4_diff_lora'
-output_path = 'outputs/GPT2_large_09_1e-4_diff_lora_/'
+checkpoint_dir = 'outputs/GPT2_large_12_1e-4_diff_lora'
+output_path = 'outputs/GPT2_large_12_1e-4_diff_lora_/'
 
 if not os.path.isdir(output_path):
     os.mkdir(output_path)
