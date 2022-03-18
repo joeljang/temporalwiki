@@ -22,5 +22,5 @@
     "mode" : "pretrain",
     "use_lr_scheduling" : true,
     "check_validation" : false,
-    "checkpoint_path" : "outputs/GPT2_large_11_1e-4_diff_recadam_/epoch=0"
+    "checkpoint_path" : "outputs/GPT2_large_1_1e-4_diff_recadam_/epoch=0"
 }

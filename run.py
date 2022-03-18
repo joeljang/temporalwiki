@@ -59,7 +59,7 @@ if __name__ == '__main__':
     if 'num_workers' not in hparam:
         hparam.num_workers = 0
     if 'output_dir' not in hparam:
-        hparam.output_dir = None
+        hparam.output_dir = ''
     if 'wandb_log' not in hparam:
         hparam.wandb_log = False
     if 'accelerator' not in hparam:

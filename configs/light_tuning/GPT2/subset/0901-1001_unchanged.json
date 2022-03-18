@@ -1,0 +1,21 @@
+{
+    "input_length" : 25,
+    "output_length" : 25,
+    "num_train_epochs" : 1,
+    "dataset" : "0901-1001_unchanged",
+    "dataset_version" : "full",
+    "train_batch_size" : 32,
+    "learning_rate" : 1e-5,
+    "model" : "gpt2-large",
+    "method": "baseline",
+    "gradient_accumulation_steps" : 1,
+    "ngpu" : 1,
+    "num_workers" : 40,
+    "CUDA_VISIBLE_DEVICES" : "2",
+    "check_validation" : false,
+    "wandb_log": true,
+    "wandb_project": "ever_changing_lighttune",
+    "wandb_run_name" : "GPT2_large_10_diff_unchanged",
+    "mode" : "finetune",
+    "checkpoint_path" : "outputs/10/GPT2_diff"
+}
