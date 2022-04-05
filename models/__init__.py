@@ -1,4 +1,5 @@
-from models.GPT2_Model import GPT2 as GPT2_Model
+#from models.GPT2_Model import GPT2 as GPT2_Model
+from models.GPT2_Model_ import GPT2 as GPT2_Model
 from models.T5_Model import T5 as T5_Model
 
 def load_model(type: str):
