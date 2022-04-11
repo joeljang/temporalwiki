@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     #Init configs that are not given
     if 'grad_norm' not in hparam:
-        hparam.grad_norm = 0.5
+        hparam.grad_norm = 1.0
     if 'weight_decay' not in hparam:
         hparam.weight_decay = 0.01
     if 'output_log' not in hparam:
@@ -101,7 +101,7 @@ if __name__ == '__main__':
         num_workers=hparam.num_workers,
         resume_from_checkpoint=hparam.resume_from_checkpoint, 
         use_lr_scheduling = hparam.use_lr_scheduling,
-        val_check_interval = 1.0,
+        val_check_interval = 0.25,
         fp16=hparam.fp16,
         opt_level='O1', # you can find out more on optimisation levels here https://nvidia.github.io/apex/amp.html#opt-levels-and-properties
         max_grad_norm=hparam.grad_norm, # if you enable 16-bit training then set this to a sensible value, 0.5 is a good default
@@ -115,7 +115,7 @@ if __name__ == '__main__':
 
     #Setting different val & checkpoint saving config for mode
     if args.mode=='pretrain_brute':
-        saving_epoch = args.num_files
+        saving_epoch = 1
     else:
         saving_epoch = 1
 
@@ -135,18 +135,19 @@ if __name__ == '__main__':
 
     # Setting Flags for pytorch lightning trainer. Details: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#trainer-flags
     train_params = dict(
-        accumulate_grad_batches=args.gradient_accumulation_steps,
-        gpus=args.n_gpu,
-        max_epochs=int(args.num_train_epochs * args.num_files),
-        precision= 16 if args.fp16 else 32,
-        amp_backend="native",
-        resume_from_checkpoint=args.resume_from_checkpoint,
-        gradient_clip_val=args.max_grad_norm,
-        enable_checkpointing=checkpoint_callback,
-        check_val_every_n_epoch= saving_epoch,
+        accumulate_grad_batches = args.gradient_accumulation_steps,
+        gpus = args.n_gpu,
+        max_epochs =int(args.num_train_epochs * args.num_files),
+        precision = 16 if args.fp16 else 32,
+        amp_backend = "native",
+        resume_from_checkpoint = args.resume_from_checkpoint,
+        gradient_clip_val = args.max_grad_norm,
+        enable_checkpointing = checkpoint_callback,
+        #check_val_every_n_epoch = saving_epoch,
+        val_check_interval = args.val_check_interval,
         logger = wandb_logger,
         callbacks = callbacks,
-        strategy=args.accelerator
+        strategy = args.accelerator
     )
     if 't5' in args.model_name_or_path:
         Model = load_model('T5')

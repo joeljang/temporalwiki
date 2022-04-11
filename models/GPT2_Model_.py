@@ -1,5 +1,5 @@
 import pytorch_lightning as pl
-
+from models import utils
 from transformers import (
     Adafactor,
     GPT2LMHeadModel,
@@ -20,6 +20,7 @@ import deepspeed
 import math
 import os
 import csv
+import torch.nn.functional as F
 
 from models.GPT2_Model_Kadapter import GPT2LMHeadModel as GPT2_Kadapter
 from models.GPT2_Model_LoRA import GPT2LMHeadModel as GPT2_Lora
@@ -247,14 +248,14 @@ class GPT2(pl.LightningModule):
             self.unchanged_loss += loss
             average_loss = self.unchanged_loss / self.unchanged 
             ppl = torch.exp(average_loss)
-            self.log('UnL_ppl', ppl, prog_bar=True, logger=True)
+            self.log('Un_ppl', ppl, prog_bar=True, logger=True)
             print('Un_ppl', ppl)
         elif (batch_idx < (8713//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
             self.changed +=1
             self.changed_loss += loss
             average_loss = self.changed_loss / self.changed 
             ppl = torch.exp(average_loss)
-            self.log('Ch_ppl', ppl, prog_bar=True, logger=True)
+            self.log('C_ppl', ppl, prog_bar=True, logger=True)
             print('C_ppl', ppl)
         else:
             self.wikipedia +=1
@@ -280,11 +281,114 @@ class GPT2(pl.LightningModule):
         if self.hparams.method=='mixreview':
             train_set = self.train_dataloader().dataset
         self.epoch+=1
-
+    
     def validation_step(self, batch, batch_idx):
-        if self.hparams.mode == 'finetune':
-            return self._generative_step_finetune(batch, batch_idx)
-        return self._generative_step(batch, batch_idx)
+        loss = self._step(batch)
+        ppl = torch.exp(loss)
+        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        if (batch_idx < (10000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('openwebtext_ppl', ppl, prog_bar=True, logger=True)
+        elif (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            self.log('kilt_wikipedia_ppl', ppl, prog_bar=True, logger=True)
+        elif (batch_idx < (25153//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            #self.log('lambada_ppl', ppl, prog_bar=True, logger=True)
+            self.predict_step(padding_length=self.hparams.max_input_length,task='lambada', batch=batch, batch_idx=batch_idx)
+        elif (batch_idx < (41291//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            #self.log('lama_ppl', ppl, prog_bar=True, logger=True)
+            self.predict_step(padding_length=self.hparams.max_input_length,task='lama', batch=batch, batch_idx=batch_idx)
+        elif (batch_idx < (48226//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+            #self.log('Un_ppl', ppl, prog_bar=True, logger=True)
+            self.predict_step(padding_length=self.hparams.max_input_length,task='Unchanged', batch=batch, batch_idx=batch_idx)
+        else: 
+            #self.log('C_ppl', ppl, prog_bar=True, logger=True)
+            self.predict_step(padding_length=self.hparams.max_input_length,task='Changed', batch=batch, batch_idx=batch_idx)
+
+    def get_rid_of_pad(self, tokens):
+        while tokens[0]==-100 or tokens[0]==50259:
+            tokens.pop(0)
+        return tokens
+
+    def predict_step(self, padding_length, task, batch, batch_idx):
+        source_ids = batch["source_ids"].tolist()
+        target_ids = batch["target_ids"].tolist()
+        batch_size = len(source_ids)
+        batch_loss = 0
+        batch_acc = 0
+        batch_f1 = 0
+        inps = []
+        cont_toks_list = []
+        inplens = []
+        for i in range(batch_size):
+            if source_ids[i]==target_ids[i]:
+                context_enc = source_ids[i][:padding_length-10]
+                continuation_enc = target_ids[i][padding_length-10:]
+            else:
+                context_enc = source_ids[i]
+                continuation_enc = self.get_rid_of_pad(target_ids[i])
+                #if len(continuation_enc) > 10:
+                #    continuation_enc = continuation_enc[len(continuation_enc)-10:]
+            # sanity check
+            assert len(context_enc) > 0
+            assert len(continuation_enc) > 0
+            assert len(continuation_enc) <= self.max_length
+
+            #inp = torch.tensor(
+            #    (context_enc + continuation_enc)[-(self.max_length+1):][:-1],
+            #    dtype=torch.long
+            #).to(self.device)
+            inp = torch.tensor(
+                (context_enc + continuation_enc)[-(padding_length):][:-1],
+                dtype=torch.long
+            ).to(self.device)
+            inplen, = inp.shape
+            cont = continuation_enc
+
+            # since in _collate we make sure length is descending, the longest is always the first one.
+            #padding_length = padding_length if padding_length is not None else inplen
+            # pad length from seq to padding_length
+            inp = torch.cat([
+                inp,  # [seq]
+                torch.zeros(padding_length - inplen, dtype=torch.long).to(inp.device)  # [padding_length - seq]
+            ], dim=0)
+            inps.append(inp.unsqueeze(0))  # [1, padding_length]
+            cont_toks_list.append(cont)
+            inplens.append(inplen)
+
+        batched_inps = torch.cat(inps, dim=0)  # [batch, padding_length
+        multi_logits = F.log_softmax(self._model_call(batched_inps), dim=-1).cpu()  # [batch, padding_length, vocab]
+        for logits, inp, inplen, cont_toks \
+                in zip(multi_logits, inps, inplens, cont_toks_list):
+
+            # Slice to original seq length
+            contlen = len(cont_toks)
+            original_logits = logits
+            logits = logits[inplen-contlen:inplen].unsqueeze(0)  # [1, seq, vocab]
+            # Check if per-token argmax is exactly equal to continuation
+            greedy_tokens = logits.argmax(dim=-1)
+            cont_toks = torch.tensor(cont_toks, dtype=torch.long).unsqueeze(0)  # [1, seq]
+            max_equal = (greedy_tokens == cont_toks).all()
+            predicted = self.ids_to_clean_text(greedy_tokens)
+            ground_truth = self.ids_to_clean_text(cont_toks)
+            em = self.exact_match_score(predicted[0], ground_truth[0])
+            f1 = self._f1_score(predicted[0], ground_truth[0])
+
+            # Obtain log-probs at the corresponding continuation token indices
+            # last_token_slice = logits[:, -1, :].squeeze(0).tolist()
+            logits = torch.gather(logits, 2, cont_toks.unsqueeze(-1)).squeeze(-1)  # [1, seq]
+            # Answer: (log prob, is-exact-match)
+            loss = -float(logits.sum())
+            if bool(max_equal) or em==1:
+                batch_acc+=1
+            batch_loss += loss
+            batch_f1 += f1
+            
+        batch_loss_avg = batch_loss / batch_size
+        batch_acc_avg = batch_acc / batch_size
+        batch_f1_avg = batch_f1 / batch_size
+        self.log(f'{task}_loss', batch_loss_avg, prog_bar=True, logger=True)
+        self.log(f'{task}_acc', batch_acc_avg, prog_bar=True, logger=True)
+        self.log(f'{task}_f1', batch_f1_avg, prog_bar=True, logger=True)
+        return
 
     def configure_optimizers(self, train_len=None):
         "Prepare optimizer and schedule (linear warmup and decay)"
@@ -363,7 +467,7 @@ class GPT2(pl.LightningModule):
             denomniator = (self.hparams.n_gpu * self.hparams.gradient_accumulation_steps)
 
             steps_per_epoch = ( len_data // denomniator ) + 1
-            schedule_scale_factor = 8
+            schedule_scale_factor = 1
             total_num_steps = ( steps_per_epoch * self.hparams.num_train_epochs ) * self.hparams.num_files * schedule_scale_factor
 
             print(f'total number of steps : {total_num_steps}')
@@ -399,3 +503,362 @@ class GPT2(pl.LightningModule):
         test_dataset = self.get_dataset(tokenizer=self.tokenizer, type_path="test", args=self.hparams)
         
         return DataLoader(test_dataset, batch_size=self.hparams.eval_batch_size, num_workers=self.hparams.num_workers, shuffle=False)
+
+    @property
+    def eot_token_id(self):
+        # we use EOT because end of *text* is more accurate for what we're doing than end of *sentence*
+        return self.tokenizer.eos_token_id
+
+    @property
+    def max_length(self):
+        try:
+            return self.model.config.n_ctx
+        except AttributeError:
+            # gptneoconfig doesn't have n_ctx apparently
+            return self.model.config.max_position_embeddings
+
+    @property
+    def max_gen_toks(self):
+        return 256
+
+    @property
+    def batch_size(self):
+        # TODO: fix multi-gpu
+        return self.batch_size_per_gpu  # * gpus
+
+    @property
+    def device(self):
+        # TODO: fix multi-gpu
+        return self._device
+
+    def tok_encode(self, string: str):
+        return self.tokenizer.encode(string, add_special_tokens=False)
+
+    def tok_decode(self, tokens):
+        return self.tokenizer.decode(tokens)
+
+    def _model_call(self, inps):
+        """
+        inps: a torch tensor of shape [batch, sequence]
+        the size of sequence may vary from call to call
+        returns: a torch tensor of shape [batch, sequence, vocab] with the
+        logits returned from the model
+        """
+        with torch.no_grad():
+            res = self.model(inps)
+            return res[0][:, :, :50257]
+
+    def _model_generate(self, context, max_length, eos_token_id):
+        return self.model.generate(
+            context,
+            max_length=max_length,
+            eos_token_id=eos_token_id,
+            do_sample=False
+        )
+
+    def loglikelihood(self, requests):
+        new_reqs = []
+        for context, continuation in requests:
+            if context == "":
+                # end of text as context
+                context_enc = [self.eot_token_id]
+            else:
+                context_enc = self.tok_encode(context)
+
+            continuation_enc = self.tok_encode(continuation)
+            new_reqs.append(((context, continuation), context_enc, continuation_enc))
+
+        return self._loglikelihood_tokens(new_reqs)
+
+    def loglikelihood_rolling(self, requests):
+        # TODO: Implement caching once we've confirmed the perplexity implementation
+        # TODO: automatic batch size detection for vectorization
+
+        loglikelihoods = []
+        for string, in tqdm(requests):
+            rolling_token_windows = list(map(utils.make_disjoint_window, utils.get_rolling_token_windows(
+                token_list=self.tok_encode(string),
+                prefix_token=self.eot_token_id,
+                max_seq_len=self.max_length,
+                context_len=1,
+            )))
+
+            rolling_token_windows = [(None,) + x for x in rolling_token_windows]
+
+            # TODO: extract out this call so it only gets called once and also somehow figure out partial caching for
+            # that
+            string_nll = self._loglikelihood_tokens(rolling_token_windows, disable_tqdm=True)
+
+            # discard is_greedy
+            string_nll = [x[0] for x in string_nll]
+
+            string_nll = sum(string_nll)
+            loglikelihoods.append(string_nll)
+
+        return loglikelihoods
+
+    def _loglikelihood_tokens(self, requests, disable_tqdm=False):
+        # TODO: implement some kind of efficient-request-middleware that lumps together requests with the same context
+        res = []
+
+        def _collate(x):
+            # the negative sign on len(toks) sorts descending - this has a few advantages:
+            # - time estimates will always be over not underestimates, which is more useful for planning
+            # - to know the size of a batch when going through the list, you know the first one is always the batch
+            #   padded context length. this is useful to simplify the batching logic and more importantly to make
+            #   automatic adaptive batches much much easier to implement
+            # - any OOMs will happen right away rather than near the end
+
+            toks = x[1] + x[2]
+            return -len(toks), tuple(toks)
+
+
+        # TODO: automatic (variable) batch size detection for vectorization
+        reord = utils.Reorderer(requests, _collate)
+        for chunk in utils.chunks(tqdm(reord.get_reordered(), disable=disable_tqdm), self.batch_size):
+            inps = []
+            cont_toks_list = []
+            inplens = []
+
+            padding_length = None
+
+            # because vectorizing is annoying, we first convert each (context, continuation) pair to padded
+            # tensors, then we pack them together into a batch, call the model, and then pick it all apart
+            # again because vectorizing is annoying
+
+            for _, context_enc, continuation_enc in chunk:
+                # sanity check
+                assert len(context_enc) > 0
+                assert len(continuation_enc) > 0
+                assert len(continuation_enc) <= self.max_length
+
+                # how this all works:
+                #          CTX      CONT
+                # inp    0 1 2 3|4 5 6 7 8 9   <- last token is deleted by inp[:, :-1]
+                # gpt2    \               \
+                # logits   1 2 3|4 5 6 7 8 9   <- the ctx half gets tossed out by the
+                # cont_toks      4 5 6 7 8 9      [:, -len(continuation_enc):, :self.vocab_size] slice
+
+                # when too long to fit in context, truncate from the left
+                inp = torch.tensor(
+                    (context_enc + continuation_enc)[-(self.max_length+1):][:-1],
+                    dtype=torch.long
+                ).to(self.device)
+                inplen, = inp.shape
+
+                cont = continuation_enc
+
+                # since in _collate we make sure length is descending, the longest is always the first one.
+                padding_length = padding_length if padding_length is not None else inplen
+
+                # pad length from seq to padding_length
+                inp = torch.cat([
+                    inp,  # [seq]
+                    torch.zeros(padding_length - inplen, dtype=torch.long).to(inp.device)  # [padding_length - seq]
+                ], dim=0)
+
+                inps.append(inp.unsqueeze(0))  # [1, padding_length]
+                cont_toks_list.append(cont)
+                inplens.append(inplen)
+
+            batched_inps = torch.cat(inps, dim=0)  # [batch, padding_length
+            multi_logits = F.log_softmax(self._model_call(batched_inps), dim=-1).cpu()  # [batch, padding_length, vocab]
+            # Make prediction directory if not exist
+            pred_dir = self.pred_log.split('/')[0]
+            isExist = os.path.exists(pred_dir)
+            if not isExist:
+                os.makedirs(pred_dir)
+            #Write prediction
+            with open(self.pred_log, 'a', newline='') as writefile:  
+                writer = csv.writer(writefile)
+                for (cache_key, _, _), logits, inp, inplen, cont_toks \
+                        in zip(chunk, multi_logits, inps, inplens, cont_toks_list):
+
+                    # Slice to original seq length
+                    contlen = len(cont_toks)
+                    original_logits = logits
+                    logits = logits[inplen-contlen:inplen].unsqueeze(0)  # [1, seq, vocab]
+
+                    # Check if per-token argmax is exactly equal to continuation
+                    greedy_tokens = logits.argmax(dim=-1)
+                    cont_toks = torch.tensor(cont_toks, dtype=torch.long).unsqueeze(0)  # [1, seq]
+                    max_equal = (greedy_tokens == cont_toks).all()
+                    lines = "".join(self.ids_to_clean_text_(inp))
+                    predicted = self.ids_to_clean_text_(greedy_tokens)
+                    ground_truth = self.ids_to_clean_text_(cont_toks)
+                    if max_equal:
+                        writer.writerow([lines, ground_truth, predicted, "CORRECT"])
+                    else:
+                        writer.writerow([lines, ground_truth, predicted, "WRONG"])
+                    # Obtain log-probs at the corresponding continuation token indices
+                    # last_token_slice = logits[:, -1, :].squeeze(0).tolist()
+                    logits = torch.gather(logits, 2, cont_toks.unsqueeze(-1)).squeeze(-1)  # [1, seq]
+                    # Answer: (log prob, is-exact-match)
+                    answer = (float(logits.sum()), bool(max_equal))
+                    # partial caching
+                    """
+                    if cache_key is not None:
+                        self.cache_hook.add_partial("loglikelihood", cache_key, answer)
+                    """
+                    res.append(answer)
+
+        return reord.get_original(res)
+
+    def greedy_until(self, requests):
+        # TODO: implement fully general `until` that handles untils that are 
+        #       multiple tokens or that span multiple tokens correctly
+
+        # TODO: extract to TokenizedLM?
+        res = []
+
+        def _collate(x):
+            toks = self.tok_encode(x[0])
+            return len(toks), x[0]
+
+        reord = utils.Reorderer(requests, _collate)
+
+        for context, until in tqdm.tqdm(reord.get_reordered()):
+            if isinstance(until, str):
+                until = [until]
+
+            primary_until, = self.tok_encode(until[0])
+
+            context_enc = torch.tensor([self.tok_encode(context)[self.max_gen_toks - self.max_length:]]).to(self.device)
+
+            cont = self._model_generate(context_enc, context_enc.shape[1] + self.max_gen_toks, primary_until)
+
+            s = self.tok_decode(cont[0].tolist()[context_enc.shape[1]:])
+
+            for term in until:
+                s = s.split(term)[0]
+            """
+            # partial caching
+            self.cache_hook.add_partial("greedy_until", (context, until), s)
+            """
+            res.append(s)
+
+        return reord.get_original(res)
+    
+    @utils.positional_deprecated
+    def fewshot_context(self, doc, num_fewshot, provide_description=None, rnd=None, description=None):
+        """ Returns a fewshot context string that is made up of a prepended description
+        (if provided), the `num_fewshot` number of examples, and an appended prompt example.
+
+        :param doc: str
+            The document as returned from training_docs, validation_docs, or test_docs.
+        :param num_fewshot: int
+            The number of fewshot examples to provide in the returned context string.
+        :param provide_description: bool
+            Not implemented, and this option is deprecated and will be removed in a future version in favor of a different description providing method
+        :param rnd: random.Random
+            The pseudo-random number generator used to randomly sample examples.
+            WARNING: This is currently a required arg although it's optionalized with a default `None`.
+        :param description: str
+            The task's description that will be prepended to the fewshot examples.
+        :returns: str
+            The fewshot context.
+        """
+        assert rnd is not None, "A `random.Random` generator argument must be provided to `rnd`"
+        assert not provide_description, (
+            "The `provide_description` arg will be removed in future versions. To prepend "
+            "a custom description to the context, supply the corresponding string via the "
+            "`description` arg."
+        )
+        if provide_description is not None:
+            # nudge people to not specify it at all
+            print("WARNING: provide_description is deprecated and will be removed in a future version in favor of description_dict")
+
+        description = description + "\n\n" if description else ""
+
+        if num_fewshot == 0:
+            labeled_examples = ""
+        else:
+            # for sets with no training docs, draw from other set *but ensure no overlap with current doc*
+            if self.has_training_docs():
+                fewshotex = self.fewshot_examples(k=num_fewshot, rnd=rnd)
+            else:
+                if self._fewshot_docs is None:
+                    self._fewshot_docs = list(
+                        self.validation_docs() if self.has_validation_docs() else self.test_docs()
+                    )
+
+                fewshotex = rnd.sample(self._fewshot_docs, num_fewshot + 1)
+
+                # get rid of the doc that's the one we're evaluating, if it's in the fewshot
+                fewshotex = [x for x in fewshotex if x != doc][:num_fewshot]
+
+            labeled_examples = "\n\n".join(
+                [self.doc_to_text(doc) + self.doc_to_target(doc) for doc in fewshotex]
+            ) + "\n\n"
+
+        example = self.doc_to_text(doc)
+        return description + labeled_examples + example
+    
+    def has_training_docs(self):
+        return True
+
+    def has_validation_docs(self):
+        return True
+
+    def has_test_docs(self):
+        return False
+
+    def training_docs(self):
+        return jsonlines.open('data/triviaqa/unfiltered-web-train.jsonl')
+
+    def validation_docs(self):
+        return jsonlines.open('data/triviaqa/unfiltered-web-dev.jsonl')
+
+    def fewshot_context(self, doc, num_fewshot, provide_description=None, rnd=None, description=None):
+        """ Returns a fewshot context string that is made up of a prepended description
+        (if provided), the `num_fewshot` number of examples, and an appended prompt example.
+
+        :param doc: str
+            The document as returned from training_docs, validation_docs, or test_docs.
+        :param num_fewshot: int
+            The number of fewshot examples to provide in the returned context string.
+        :param provide_description: bool
+            Not implemented, and this option is deprecated and will be removed in a future version in favor of a different description providing method
+        :param rnd: random.Random
+            The pseudo-random number generator used to randomly sample examples.
+            WARNING: This is currently a required arg although it's optionalized with a default `None`.
+        :param description: str
+            The task's description that will be prepended to the fewshot examples.
+        :returns: str
+            The fewshot context.
+        """
+        assert rnd is not None, "A `random.Random` generator argument must be provided to `rnd`"
+        assert not provide_description, (
+            "The `provide_description` arg will be removed in future versions. To prepend "
+            "a custom description to the context, supply the corresponding string via the "
+            "`description` arg."
+        )
+        if provide_description is not None:
+            # nudge people to not specify it at all
+            print("WARNING: provide_description is deprecated and will be removed in a future version in favor of description_dict")
+
+        description = description + "\n\n" if description else ""
+
+        if num_fewshot == 0:
+            labeled_examples = ""
+        else:
+            # for sets with no training docs, draw from other set *but ensure no overlap with current doc*
+            if self.has_training_docs():
+                fewshotex = self.fewshot_examples(k=num_fewshot, rnd=rnd)
+            else:
+                if self._fewshot_docs is None:
+                    self._fewshot_docs = list(
+                        self.validation_docs() if self.has_validation_docs() else self.test_docs()
+                    )
+
+                fewshotex = rnd.sample(self._fewshot_docs, num_fewshot + 1)
+
+                # get rid of the doc that's the one we're evaluating, if it's in the fewshot
+                fewshotex = [x for x in fewshotex if x != doc][:num_fewshot]
+
+            labeled_examples = "\n\n".join(
+                [self.doc_to_text(doc) + self.doc_to_target(doc) for doc in fewshotex]
+            ) + "\n\n"
+
+        example = self.doc_to_text(doc)
+        return description + labeled_examples + example
