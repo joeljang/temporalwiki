@@ -101,7 +101,7 @@ if __name__ == '__main__':
         num_workers=hparam.num_workers,
         resume_from_checkpoint=hparam.resume_from_checkpoint, 
         use_lr_scheduling = hparam.use_lr_scheduling,
-        val_check_interval = 0.1,
+        val_check_interval = 0.05,
         fp16=hparam.fp16,
         opt_level='O1', # you can find out more on optimisation levels here https://nvidia.github.io/apex/amp.html#opt-levels-and-properties
         max_grad_norm=hparam.grad_norm, # if you enable 16-bit training then set this to a sensible value, 0.5 is a good default
