@@ -4,7 +4,7 @@
     "num_train_epochs" : 4,
     "num_files" : 2,
     "output_dir" : "outputs/GPT2_large_08_1r2.5e-4_full",
-    "dataset" : "data/1024/08",
+    "dataset" : "data/new_data/twiki_corpus_1024/08",
     "dataset_version" : "full",
     "len_data" : 2697988,
     "train_batch_size" : 3,

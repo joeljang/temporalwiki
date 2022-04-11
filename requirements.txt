@@ -10,6 +10,7 @@ google-cloud-storage
 deepspeed
 boto3
 rouge
+pytest
 
 torch==1.9.0+cu111 
 torchvision==0.10.0+cu111 
