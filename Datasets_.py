@@ -23,16 +23,17 @@ class CustomDataset(Dataset):
             skip = sorted(random.sample(range(1,total_line+1),total_line-length))
             self.dataset = pd.read_csv('data/Wikipedia_Full/wikipedia_08_gpt2/part1.csv', usecols=['text'], skiprows=skip)
         else:
-            openwebtext = pd.read_csv('data/moee_validation/openwebtext/openwebtext_10000.csv')
-            kilt_wikipedia = pd.read_csv('data/moee_validation/kilt_wikipedia/kilt_wikipedia_10000.csv')
-            lambada = pd.read_json('data/moee_validation/lambada/lambada_test.jsonl', lines=True)
-            invariantlama = pd.read_csv('data/moee_validation/IL.csv')
+            dataset_prefix = 'data/new_moee_validation/'
+            openwebtext = pd.read_csv(f'{dataset_prefix}openwebtext.csv')
+            kilt_wikipedia = pd.read_csv(f'{dataset_prefix}kilt_wikipedia.csv')
+            lambada = pd.read_csv(f'{dataset_prefix}lambada.csv')
+            lama = pd.read_csv(f'{dataset_prefix}trex_lama.csv')
             if self.args.dataset=='data/new_data/twiki_corpus_1024/08' or self.args.dataset=='data/new_data/twiki_corpus_1024/09':
-                unchanged = pd.read_csv('data/new_data/twiki_probes/0801-0901_unchanged.csv')
-                changed = pd.read_csv('data/new_data/twiki_probes/0801-0901_changed.csv')
+                unchanged = pd.read_csv('data/new_data/tempate_mapped/0801-0901_unchanged_final_template2.csv')
+                changed = pd.read_csv('data/new_data/tempate_mapped/0801-0901_changed_final_template2.csv')
             else:
                 raise Exception(f'the following training data {self.args.dataset} does not have a designated validation dataset')
-            self.dataset = pd.concat([openwebtext, kilt_wikipedia, lambada, invariantlama, unchanged, changed])
+            self.dataset = pd.concat([openwebtext, kilt_wikipedia, lambada, lama, unchanged, changed])
 
         print(f'Length of dataset retrieving is.. {len(self.dataset)}')
         self.input_length = input_length
@@ -48,19 +49,24 @@ class CustomDataset(Dataset):
         return input, target
 
     def convert_to_features(self, example_batch, index):
-        if index < 20000:
+        if index < 19200:
             input_, target_ = example_batch['text'], example_batch['text']       
-        elif index < 25153:
+        elif index < 24192:
             input_, target_ = self.input_to_target(example_batch['text'])
+        elif index < 52928:
+            input_ = example_batch['input']
+            input_ = input_[:-1]
+            target_ = " " + example_batch['output']
         else:
-            input_ = example_batch['subject'] + " " + example_batch['relation']
-            target_ = " " + example_batch['object']
+            input_ = example_batch['input']
+            target_ = " " + example_batch['target']
+        task = example_batch['task']
         source = self.tokenizer.batch_encode_plus([str(input_)], max_length=self.input_length, padding='max_length', truncation=True, return_tensors="pt")
         targets = self.tokenizer.batch_encode_plus([str(target_)], max_length=self.output_length, padding='max_length', truncation=True, return_tensors="pt")  
-        return source, targets
+        return source, targets, task
         
     def __getitem__(self, index):
-        source, targets = self.convert_to_features(self.dataset.iloc[index], index=index) 
+        source, targets, task = self.convert_to_features(self.dataset.iloc[index], index=index) 
         
         source_ids = source["input_ids"].squeeze()
         target_ids = targets["input_ids"].squeeze()
@@ -68,7 +74,7 @@ class CustomDataset(Dataset):
         src_mask    = source["attention_mask"].squeeze()
         target_mask = targets["attention_mask"].squeeze()
 
-        return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}
+        return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask, "task": task}
     
 class Pretrain_Chunks(Dataset):
     def __init__(self, dataset_name, tokenizer, input_length, output_length, args):

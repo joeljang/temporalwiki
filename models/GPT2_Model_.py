@@ -77,7 +77,7 @@ class GPT2(pl.LightningModule):
 
 
         self.model.resize_token_embeddings(len(self.tokenizer))
-        self.tokenizer.padding_side = "left"
+        #self.tokenizer.padding_side = "left"
 
         self.output_dir = self.hparams.output_dir
         if self.hparams.mode=='pretrain_brute':
@@ -283,29 +283,34 @@ class GPT2(pl.LightningModule):
         self.epoch+=1
     
     def validation_step(self, batch, batch_idx):
-        loss = self._step(batch)
-        ppl = torch.exp(loss)
-        self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        if (batch_idx < (10000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-            self.log('openwebtext_ppl', ppl, prog_bar=True, logger=True)
-        elif (batch_idx < (20000//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-            self.log('kilt_wikipedia_ppl', ppl, prog_bar=True, logger=True)
-        elif (batch_idx < (25153//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-            #self.log('lambada_ppl', ppl, prog_bar=True, logger=True)
-            self.predict_step(padding_length=self.hparams.max_input_length,task='lambada', batch=batch, batch_idx=batch_idx)
-        elif (batch_idx < (41291//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-            #self.log('lama_ppl', ppl, prog_bar=True, logger=True)
-            self.predict_step(padding_length=self.hparams.max_input_length,task='lama', batch=batch, batch_idx=batch_idx)
-        elif (batch_idx < (48226//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
-            #self.log('Un_ppl', ppl, prog_bar=True, logger=True)
-            self.predict_step(padding_length=self.hparams.max_input_length,task='Unchanged', batch=batch, batch_idx=batch_idx)
-        else: 
-            #self.log('C_ppl', ppl, prog_bar=True, logger=True)
-            self.predict_step(padding_length=self.hparams.max_input_length,task='Changed', batch=batch, batch_idx=batch_idx)
+        tasks = batch["task"]
+        first_task = tasks[0]
+        uniformed = True
+        for t in tasks:
+            if t!=first_task:
+                uniformed = False
+        if uniformed:
+            loss = self._step(batch)
+            ppl = torch.exp(loss)
+            self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+            if (batch_idx < (9600//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+                self.log('openwebtext_ppl', ppl, prog_bar=True, logger=True)
+            elif (batch_idx < (19200//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+                self.log('kilt_wikipedia_ppl', ppl, prog_bar=True, logger=True)
+            elif (batch_idx < (24192//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+                self.predict_step(padding_length=self.hparams.max_input_length,task='lambada', batch=batch, batch_idx=batch_idx)
+            elif (batch_idx < (52928//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+                self.predict_step(padding_length=self.hparams.max_input_length,task='lama', batch=batch, batch_idx=batch_idx)
+            elif (batch_idx < (56052//(self.hparams.eval_batch_size * self.hparams.n_gpu))):
+                self.predict_step(padding_length=self.hparams.max_input_length,task='Unchanged', batch=batch, batch_idx=batch_idx)
+            else: 
+                self.predict_step(padding_length=self.hparams.max_input_length,task='Changed', batch=batch, batch_idx=batch_idx)
+        else:
+            print(f'The batch {batch_idx} is not uniformed..')
 
     def get_rid_of_pad(self, tokens):
-        while tokens[0]==-100 or tokens[0]==50259:
-            tokens.pop(0)
+        while tokens[-1]==-100 or tokens[-1]==50259:
+            tokens.pop()
         return tokens
 
     def predict_step(self, padding_length, task, batch, batch_idx):
@@ -323,7 +328,7 @@ class GPT2(pl.LightningModule):
                 context_enc = source_ids[i][:padding_length-10]
                 continuation_enc = target_ids[i][padding_length-10:]
             else:
-                context_enc = source_ids[i]
+                context_enc = self.get_rid_of_pad(source_ids[i])
                 continuation_enc = self.get_rid_of_pad(target_ids[i])
                 #if len(continuation_enc) > 10:
                 #    continuation_enc = continuation_enc[len(continuation_enc)-10:]
@@ -379,6 +384,7 @@ class GPT2(pl.LightningModule):
             loss = -float(logits.sum())
             if bool(max_equal) or em==1:
                 batch_acc+=1
+                
             batch_loss += loss
             batch_f1 += f1
             
