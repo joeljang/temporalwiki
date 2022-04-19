@@ -28,7 +28,7 @@ class CustomDataset(Dataset):
             kilt_wikipedia = pd.read_csv(f'{dataset_prefix}kilt_wikipedia.csv')
             lambada = pd.read_csv(f'{dataset_prefix}lambada.csv')
             lama = pd.read_csv(f'{dataset_prefix}trex_lama.csv')
-            if self.args.dataset=='data/new_data/twiki_corpus_1024/08' or self.args.dataset=='data/new_data/twiki_corpus_1024/09':
+            if self.args.dataset=='data/new_data/final_twiki_corpus_1024/08' or self.args.dataset=='data/new_data/final_twiki_corpus_1024/09':
                 unchanged = pd.read_csv('data/new_data/tempate_mapped/0801-0901_unchanged_final_template2.csv')
                 changed = pd.read_csv('data/new_data/tempate_mapped/0801-0901_changed_final_template2.csv')
             else:
