@@ -1,0 +1,16 @@
+{
+    "input_length" : 512,
+    "output_length" : 512,
+    "dataset" : "wikipedia_11_gpt2",
+    "dataset_version" : "full",
+    "train_batch_size" : 4,
+    "model" : "gpt2-large",
+    "method": "lora",
+    "ngpu" : 1,
+    "num_workers" : 40,
+    "CUDA_VISIBLE_DEVICES" : "2",
+    "check_validation" : true,
+    "mode" : "evaluate_ppl_corpus",
+    "checkpoint_path" : "outputs/12/GPT2_lora",
+    "output_log": "log/GPT2/lora/1101-1201_ppl_full.csv"
+}

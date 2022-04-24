@@ -1,0 +1,16 @@
+{
+    "input_length" : 25,
+    "output_length" : 25,
+    "dataset" : "0901-1001_unchanged",
+    "dataset_version" : "full",
+    "train_batch_size" : 32,
+    "model" : "gpt2-large",
+    "method": "mixreview",
+    "ngpu" : 1,
+    "num_workers" : 40,
+    "CUDA_VISIBLE_DEVICES" : "2",
+    "check_validation" : true,
+    "mode" : "evaluate_ppl",
+    "checkpoint_path" : "outputs/10/GPT2_mixreview",
+    "output_log": "log/GPT2/mixreview/0901-1001_unchanged_ppl.csv"
+}

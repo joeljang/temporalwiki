@@ -1,0 +1,16 @@
+{
+    "input_length" : 25,
+    "output_length" : 25,
+    "dataset" : "0901-1001_changed",
+    "dataset_version" : "full",
+    "train_batch_size" : 32,
+    "model" : "gpt2-large",
+    "method": "recadam",
+    "ngpu" : 1,
+    "num_workers" : 40,
+    "CUDA_VISIBLE_DEVICES" : "2",
+    "check_validation" : true,
+    "mode" : "evaluate_ppl",
+    "checkpoint_path" : "outputs/10/GPT2_recadam",
+    "output_log": "log/GPT2/recadam/0901-1001_changed_ppl.csv"
+}

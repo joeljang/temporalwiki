@@ -1,0 +1,16 @@
+{
+    "input_length" : 512,
+    "output_length" : 512,
+    "dataset" : "wikipedia_10_gpt2",
+    "dataset_version" : "full",
+    "train_batch_size" : 4,
+    "model" : "gpt2-large",
+    "method": "recadam",
+    "ngpu" : 1,
+    "num_workers" : 40,
+    "CUDA_VISIBLE_DEVICES" : "2",
+    "check_validation" : true,
+    "mode" : "evaluate_ppl_corpus",
+    "checkpoint_path" : "outputs/10/GPT2_recadam",
+    "output_log": "log/GPT2/recadam/0901-1001_ppl_full.csv"
+}
