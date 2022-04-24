@@ -1,4 +1,5 @@
 # TemporaWiki
+In order to generate new TemporalWiki (training and evaluation corpus), use the [TemporalWikiDatasets](https://github.com/CHLee0801/TemporalWikiDatasets) repository.
 
 In order to reproduce our results, take the following steps:
 ### 1. Create conda environment and install requirements
@@ -16,39 +17,25 @@ pip3 install torch torchvision torchaudio
 pip3 install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
 ```
 
-Finally, some directory generation.
-
-    everchange-dev
-    ├── outputs
-    │   ├── lighttune
-    │   ├── initial
-    ├── data
-    ├── log
-    │   ├── GPT
-    │   |   ├── brute_force
-    │   |   ├── ckl
-    │   |   ├── initial
-    │   |   ├── subset
-
-### 2. Download the data used for the experiments.
-To download Full Wikipedia data for 2021.08-2021.12:
+### 2. Download the preprocessed training and evaluation data (5 snapshots from 2021.08 - 2021.12) used for the experiments on the paper.
+To download the Entire Wikipedia Corpus data:
 ```
 wget https://continual.blob.core.windows.net/elm/Wikipedia_Full.zip
 ```
 
-To download TWiki_Diffsets data for 2021.08-2021.12:
+To download TWiki_Diffsets:
 ```
 wget https://continual.blob.core.windows.net/elm/TWiki_Diffsets.zip
 ```
 
-To download TWiki_Probes data for 2021.08-2021.12:
+To download TWiki_Probes:
 ```
 wget https://continual.blob.core.windows.net/elm/TWiki_Probes.zip
 ```
 
-Download the data to ```data``` and unzip it
+Download the data to ```data``` directory and unzip it
 
-To download the Initial GPT2 model trained on 08.2021 Wikipedia dump for 4 epochs:
+Finally, download the Initial GPT-2 model checkpoint trained on 08.2021 Wikipedia Snapshot used as the initial model for the paper.
 ```
 wget https://continual.blob.core.windows.net/elm/model_checkpoints/08/GPT2_large_08_full.ckpt
 ```
@@ -60,7 +47,9 @@ This is an example of performing continual pretraining on **TWiki_Diffsets** (ma
 python run.py --config configs/baseline_gpt2_s.json
 ```
 
-This is an example of performing light-tuning pretrained model
+After training the model, run ```convert_to_fp32.py``` to convert the fp16 model checkpoints to fp32 checkpoint files to be used for evaluation.
+
+This is an example of performing light-tuning on the pretrained models
 ```
 python run.py --config configs/light_tuning/GPT2/subset/0801-0901_new.json
 ```
@@ -69,9 +58,7 @@ This is an example of getting the **TWiki_Probes New** zero-shot evaluation of c
 python run.py --config configs/evaluation/GPT2/subset/0801-0901_new.json
 ```
 
-After training the model, run ```convert_to_fp32.py``` to convert output to checkpoint file.
-
-For components in configuration file, please refer to the [Continual-Knowledge-Learning](https://github.com/joeljang/continual-knowledge-learning)
+For components in configuration file, please refer to the [Continual-Knowledge-Learning](https://github.com/joeljang/continual-knowledge-learning) repository.
 
 ## Generation of Datasets
 
