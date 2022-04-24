@@ -3,7 +3,7 @@
 In order to reproduce our results, take the following steps:
 ### 1. Create conda environment and install requirements
 ```
-conda create -n elm python=3.8 && conda activate elm
+conda create -n twiki python=3.8 && conda activate twiki
 pip install -r requirements.txt
 ```
 
