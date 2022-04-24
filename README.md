@@ -1,5 +1,4 @@
-# Everchanging Language Models Dev Repo
-
+# TemporaWiki
 
 In order to reproduce our results, take the following steps:
 ### 1. Create conda environment and install requirements
