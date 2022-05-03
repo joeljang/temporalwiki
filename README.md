@@ -1,4 +1,6 @@
 # TemporaWiki
+Official code for the paper [TemporalWiki: A Lifelong Benchmark for Training and Evaluating Ever-Evolving Language Models](https://arxiv.org/abs/2204.14211)
+
 In order to generate new TemporalWiki (training and evaluation corpus), use the [TemporalWikiDatasets](https://github.com/CHLee0801/TemporalWikiDatasets) repository.
 
 In order to reproduce our results, take the following steps:
