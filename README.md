@@ -1,5 +1,16 @@
 # TemporaWiki
+
 Official code for the paper [TemporalWiki: A Lifelong Benchmark for Training and Evaluating Ever-Evolving Language Models](https://arxiv.org/abs/2204.14211)
+
+Use the following to cite our paper:
+```
+@article{jang2022temporalwiki,
+  title={TemporalWiki: A Lifelong Benchmark for Training and Evaluating Ever-Evolving Language Models},
+  author={Jang, Joel and Ye, Seonghyeon and Lee, Changho and Yang, Sohee and Shin, Joongbo and Han, Janghoon and Kim, Gyeonghun and Seo, Minjoon},
+  journal={arXiv preprint arXiv:2204.14211},
+  year={2022}
+}
+```
 
 In order to generate new TemporalWiki (training and evaluation corpus), use the [TemporalWikiDatasets](https://github.com/CHLee0801/TemporalWikiDatasets) repository.
 
