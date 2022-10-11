@@ -1,13 +1,13 @@
 # TemporaWiki
 
-Official code for the paper [TemporalWiki: A Lifelong Benchmark for Training and Evaluating Ever-Evolving Language Models](https://arxiv.org/abs/2204.14211)
+Official code for the paper [TemporalWiki: A Lifelong Benchmark for Training and Evaluating Ever-Evolving Language Models](https://arxiv.org/abs/2204.14211) accepted at EMNLP 2022
 
 Use the following to cite our paper:
 ```
-@article{jang2022temporalwiki,
+@inproceedings{jang2022temporalwiki,
   title={TemporalWiki: A Lifelong Benchmark for Training and Evaluating Ever-Evolving Language Models},
   author={Jang, Joel and Ye, Seonghyeon and Lee, Changho and Yang, Sohee and Shin, Joongbo and Han, Janghoon and Kim, Gyeonghun and Seo, Minjoon},
-  journal={arXiv preprint arXiv:2204.14211},
+  journal={EMNLP 2022},
   year={2022}
 }
 ```
