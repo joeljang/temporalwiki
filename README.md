@@ -1,5 +1,7 @@
 # TemporaWiki
 
+![alt text](figure1.png "Main Figure")
+
 Official code for the paper [TemporalWiki: A Lifelong Benchmark for Training and Evaluating Ever-Evolving Language Models](https://arxiv.org/abs/2204.14211) accepted at EMNLP 2022
 
 Use the following to cite our paper:
