@@ -59,18 +59,18 @@ wget https://continual.blob.core.windows.net/elm/model_checkpoints/08/GPT2_large
 ### 3. Run the experiment and configuration components
 This is an example of performing continual pretraining on **TWiki_Diffsets** (main experiment) with **CKL**
 ```
-python run.py --config configs/baseline_gpt2_s.json
+python run.py --config configs/training/diff.json
 ```
 
 After training the model, run ```convert_to_fp32.py``` to convert the fp16 model checkpoints to fp32 checkpoint files to be used for evaluation.
 
 This is an example of performing light-tuning on the pretrained models
 ```
-python run.py --config configs/light_tuning/GPT2/subset/0801-0901_new.json
+python run.py --config configs/light_tuning/GPT2/subset/0801-0901_changed.json
 ```
 This is an example of getting the **TWiki_Probes New** zero-shot evaluation of continually pretrained **CKL**
 ```
-python run.py --config configs/evaluation/GPT2/subset/0801-0901_new.json
+python run.py --config configs/evaluation/GPT2/subset/0801-0901_changed.json
 ```
 
 For components in configuration file, please refer to the [Continual-Knowledge-Learning](https://github.com/joeljang/continual-knowledge-learning) repository.
