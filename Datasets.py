@@ -5,11 +5,13 @@ import random
 import os
 
 class CustomDataset(Dataset):
-    def __init__(self, tokenizer, type_path, input_length, output_length, args, length=None):
+    def __init__(self, tokenizer, type_path, input_length, output_length, args, length=None, lama_type=None):
         self.args = args
         self.tokenizer = tokenizer
         self.type_path = type_path
         self.dataset_version = self.args.dataset_version
+
+        self.lama_type = lama_type # for validation, it decided 'unchanged' or 'changed'
         dataset_v = ['small', 'full']   
             
         if not self.dataset_version in dataset_v:
@@ -59,29 +61,33 @@ class CustomDataset(Dataset):
             elif self.args.dataset=='IL':
                 self.dataset = pd.read_csv('data/TWiki_Probes/IL.csv')
             elif self.args.dataset=='data/wikipedia_09' or self.args.dataset=='wikipedia_0809' or self.args.dataset=='data/wikipedia_09_gpt2' or self.args.dataset=='wikipedia_0809_gpt2':
-                df1 = pd.read_csv('data/twiki_probes/0801-0901_unchanged.csv')
-                df2 = pd.read_csv('data/twiki_probes/0801-0901_changed.csv')
-                #df3 = pd.read_csv('data/TWiki_Probes/IL.csv')
-                self.dataset = pd.concat([df1, df2])
-                #self.dataset = pd.concat([df1, df3])
+                if self.lama_type == 'unchanged':
+                    self.dataset = pd.read_csv('data/twiki_probes/0801-0901_unchanged.csv')
+                elif self.lama_type == 'changed':
+                    self.dataset = pd.read_csv('data/twiki_probes/0801-0901_changed.csv')
+                else:
+                    self.dataset = pd.read_csv('data/TWiki_Probes/IL.csv')
             elif self.args.dataset=='data/wikipedia_10_gpt2' or self.args.dataset=='data/wikipedia_10' or self.args.dataset=='wikipedia_0910' or self.args.dataset=='wikipedia_0910_gpt2':
-                df1 = pd.read_csv('data/twiki_probes/0901-1001_unchanged.csv')
-                df2 = pd.read_csv('data/twiki_probes/0901-1001_changed.csv')
-                #df3 = pd.read_csv('data/TWiki_Probes/IL.csv')
-                self.dataset = pd.concat([df1, df2])
-                #self.dataset = pd.concat([df1, df3])
+                if self.lama_type == 'unchanged':
+                    self.dataset = pd.read_csv('data/twiki_probes/0901-1001_unchanged.csv')
+                elif self.lama_type == 'changed':
+                    self.dataset = pd.read_csv('data/twiki_probes/0901-1001_changed.csv')
+                else:
+                    self.dataset = pd.read_csv('data/TWiki_Probes/IL.csv')
             elif self.args.dataset=='data/wikipedia_11_gpt2' or self.args.dataset=='data/wikipedia_11' or self.args.dataset=='wikipedia_1011' or self.args.dataset=='wikipedia_1011_gpt2':
-                df1 = pd.read_csv('data/twiki_probes/1001-1101_unchanged.csv')
-                df2 = pd.read_csv('data/twiki_probes/1001-1101_changed.csv')
-                #df3 = pd.read_csv('data/TWiki_Probes/IL.csv')
-                self.dataset = pd.concat([df1, df2])
-                #self.dataset = pd.concat([df1, df3])
+                if self.lama_type == 'unchanged':
+                    self.dataset = pd.read_csv('data/twiki_probes/1001-1101_unchanged.csv')
+                elif self.lama_type == 'changed':
+                    self.dataset = pd.read_csv('data/twiki_probes/1001-1101_changed.csv')
+                else:
+                    self.dataset = pd.read_csv('data/TWiki_Probes/IL.csv')
             elif self.args.dataset=='data/wikipedia_12_gpt2' or self.args.dataset=='data/wikipedia_12' or self.args.dataset=='wikipedia_1112' or self.args.dataset=='wikipedia_1112_gpt2':
-                df1 = pd.read_csv('data/twiki_probes/1101-1201_unchanged.csv')
-                df2 = pd.read_csv('data/twiki_probes/1101-1201_changed.csv')
-                #df3 = pd.read_csv('data/TWiki_Probes/IL.csv')
-                self.dataset = pd.concat([df1, df2])
-                #self.dataset = pd.concat([df1, df3])
+                if self.lama_type == 'unchanged':
+                    self.dataset = pd.read_csv('data/twiki_probes/1101-1201_unchanged.csv')
+                elif self.lama_type == 'changed':
+                    self.dataset = pd.read_csv('data/twiki_probes/1101-1201_changed.csv')
+                else:
+                    self.dataset = pd.read_csv('data/TWiki_Probes/IL.csv')
             else:
                 self.dataset = pd.read_csv('data/TWiki_Probes/IL.csv')
         
