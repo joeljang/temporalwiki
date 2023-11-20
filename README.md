@@ -35,26 +35,20 @@ pip3 install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f h
 ### 2. Download the preprocessed training and evaluation data (5 snapshots from 2021.08 - 2021.12) used for the experiments on the paper.
 To download the Entire Wikipedia Corpus data:
 ```
-wget https://continual.blob.core.windows.net/elm/Wikipedia_Full.zip
+wget https://strg4lk.blob.core.windows.net/seonghyeon/temporalwiki/Wikipedia_Full.zip
 ```
 
 To download TWiki_Diffsets:
 ```
-wget https://continual.blob.core.windows.net/elm/TWiki_Diffsets.zip
+wget https://strg4lk.blob.core.windows.net/seonghyeon/temporalwiki/TWiki_Diffsets.zip
 ```
 
 To download TWiki_Probes:
 ```
-wget https://continual.blob.core.windows.net/elm/TWiki_Probes.zip
+wget https://strg4lk.blob.core.windows.net/seonghyeon/temporalwiki/TWiki_Probes.zip
 ```
 
 Download the data to ```data``` directory and unzip it
-
-Finally, download the Initial GPT-2 model checkpoint trained on 08.2021 Wikipedia Snapshot used as the initial model for the paper.
-```
-wget https://continual.blob.core.windows.net/elm/model_checkpoints/08/GPT2_large_08_full.ckpt
-```
-
 
 ### 3. Run the experiment and configuration components
 This is an example of performing continual pretraining on **TWiki_Diffsets** (main experiment) with **CKL**
