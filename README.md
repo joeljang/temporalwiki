@@ -35,17 +35,17 @@ pip3 install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f h
 ### 2. Download the preprocessed training and evaluation data (5 snapshots from 2021.08 - 2021.12) used for the experiments on the paper.
 To download the Entire Wikipedia Corpus data:
 ```
-wget https://strg4lk.blob.core.windows.net/seonghyeon/temporalwiki/Wikipedia_Full.zip
+wget https://huggingface.co/datasets/seonghyeonye/TemporalWiki/resolve/main/Wikipedia_Full.zip
 ```
 
 To download TWiki_Diffsets:
 ```
-wget https://strg4lk.blob.core.windows.net/seonghyeon/temporalwiki/TWiki_Diffsets.zip
+wget https://huggingface.co/datasets/seonghyeonye/TemporalWiki/resolve/main/TWiki_Diffsets.zip
 ```
 
 To download TWiki_Probes:
 ```
-wget https://strg4lk.blob.core.windows.net/seonghyeon/temporalwiki/TWiki_Probes.zip
+wget https://huggingface.co/datasets/seonghyeonye/TemporalWiki/resolve/main/TWiki_Probes.zip
 ```
 
 Download the data to ```data``` directory and unzip it
